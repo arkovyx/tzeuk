@@ -21,7 +21,6 @@ Singleton {
         imageSupported: true
         onNotification: n => {
             n.tracked = true
-            // We will add popups later! For now, we just count them.
         }
     }
 }
