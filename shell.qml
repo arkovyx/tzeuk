@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 
 ShellRoot {
-    property bool panelOpen: false;
+    property bool panelOpen: false
 
     Bar {
         onTogglePanel: panelOpen = !panelOpen

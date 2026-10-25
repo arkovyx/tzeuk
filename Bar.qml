@@ -7,6 +7,7 @@ PanelWindow {
     id: bar
     required property var modelData
     screen: modelData
+    signal togglePanel(string name, var scr)
 
     anchors { top: true; left: true; right: true }
     margins { top: 6; left: 12; right: 12 }
