@@ -30,8 +30,8 @@ Singleton {
     readonly property color barBg: Qt.rgba(bg.r, bg.g, bg.b, 0.85)
     readonly property color surfaceHi: Qt.rgba(fg.r, fg.g, fg.b, 0.1)
     readonly property color line: Qt.rgba(fg.r, fg.g, fg.b, 0.2)
+    readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.5)
 
-    // Nerd Font Icons
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
     readonly property string iClock: cp(0xF0954)
     readonly property string iCal: cp(0xF00ED)
