@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
-import Quickshell.Services.UPower
 
 PanelWindow {
     id: bar
@@ -20,7 +19,7 @@ PanelWindow {
     readonly property var hmon: Hyprland.monitorFor(modelData)
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
 
-    // --- Inline Reusable Pill Component ---
+    // ---------- Reusable Pill ----------
     component BarPill: Rectangle {
         id: pill
         property string icon: ""
@@ -28,14 +27,14 @@ PanelWindow {
         property color tint: Theme.fg
         signal clicked()
 
-        implicitWidth: row.implicitWidth + 16
+        implicitWidth: pillRow.implicitWidth + 16
         implicitHeight: 28
         radius: 8
-        color: m.containsMouse ? Theme.surfaceHi : "transparent"
+        color: pillMouse.containsMouse ? Theme.surfaceHi : "transparent"
         Behavior on color { ColorAnimation { duration: 150 } }
 
         Row {
-            id: row
+            id: pillRow
             anchors.centerIn: parent
             spacing: 6
             Text {
@@ -57,7 +56,7 @@ PanelWindow {
             }
         }
         MouseArea {
-            id: m
+            id: pillMouse
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -65,7 +64,7 @@ PanelWindow {
         }
     }
 
-    // Background
+    // ---------- Background ----------
     Rectangle {
         anchors.fill: parent
         color: Theme.barBg
@@ -79,94 +78,100 @@ PanelWindow {
         anchors.leftMargin: 12
         anchors.rightMargin: 12
 
-        // --- Workspaces ---
+        // ---------- Workspaces (20 persistent) ----------
         Row {
+            id: wsRow
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
+            spacing: 3
 
             readonly property var activeWs: bar.hmon ? bar.hmon.activeWorkspace : null
-            readonly property int offset: activeWs && activeWs.id > 0 ? Math.floor((activeWs.id - 1) / 10) * 10 : 0
-            readonly property var list: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (i) { return offset + i })
+            readonly property var list: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+
+            readonly property var icons: [
+                "󰈹", "󰅩", "󰂺", "󰒓", "󰍩",
+                "󰈙", "󰉋", "󰆍", "󰂕", "󰋩"
+            ]
 
             function find(id) {
                 var l = Hyprland.workspaces.values
-                for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]
+                for (var i = 0; i < l.length; i++)
+                    if (l[i].id === id) return l[i]
                 return null
             }
 
-            function step(dir) {
-                var cur = activeWs ? activeWs.id : offset + 1
-                for (var id = cur + dir; id >= offset + 1 && id <= offset + 10; id += dir) {
-                    var o = find(id)
-                    if (o !== null && o.toplevels.values.length > 0) {
-                        Hyprland.dispatch('hl.dsp.focus({ workspace = "' + id + '" })')
-                        return
-                    }
-                }
+            function switchTo(id) {
+                Hyprland.dispatch('hl.dsp.focus({ workspace = "' + id + '" })')
             }
 
-            readonly property var icons: [
-                "󰈹", "", "󰂺", "󰒓", "󰍩", "󰈙", "󰉋", "󰆍", "󰂕", "󰋩"
-            ]
+            function step(dir) {
+                var cur = activeWs ? activeWs.id : 1
+                var next = cur + dir
+                if (next < 1) next = 20
+                if (next > 20) next = 1
+                switchTo(next)
+            }
 
             Repeater {
-                model: parent.list
+                model: wsRow.list
                 delegate: Rectangle {
+                    id: wsItem
                     required property var modelData
-                    readonly property var obj: parent.find(modelData)
-                    readonly property bool active: parent.activeWs !== null && parent.activeWs.id === modelData
+                    readonly property var obj: wsRow.find(modelData)
+                    readonly property bool active: wsRow.activeWs !== null && wsRow.activeWs.id === modelData
                     readonly property bool occupied: obj !== null && obj.toplevels.values.length > 0
 
-                    width: 28
-                    height: 28
-                    radius: 8
-                    color: active ? Theme.accent : (m.containsMouse ? Theme.surfaceHi : "transparent")
+                    width: 26
+                    height: 26
+                    radius: 7
+                    color: active ? Theme.accent
+                         : (wsHover.containsMouse ? Theme.surfaceHi : "transparent")
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
-                        text: parent.icons[(modelData - 1) % 10]
-                        color: parent.active ? Theme.bg : (parent.occupied ? Theme.fg : Theme.surfaceHi)
+                        text: wsRow.icons[(wsItem.modelData - 1) % 10]
+                        color: wsItem.active ? Theme.bg
+                             : wsItem.occupied ? Theme.fg
+                             : Theme.dim
                         font.family: Theme.font
-                        font.pixelSize: 13
+                        font.pixelSize: 12
                     }
 
                     MouseArea {
-                        id: m
+                        id: wsHover
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Hyprland.dispatch('hl.dsp.focus({ workspace = "' + modelData + '" })')
-                        onWheel: w => parent.step(w.angleDelta.y > 0 ? -1 : 1)
+                        onClicked: wsRow.switchTo(wsItem.modelData)
+                        onWheel: function(w) {
+                            wsRow.step(w.angleDelta.y > 0 ? -1 : 1)
+                        }
                     }
                 }
             }
         }
 
-        // --- Right Side Elements ---
+        // ---------- Right Side ----------
         Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 6
+            spacing: 4
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
 
-            // Volume
             BarPill {
-                icon: Theme.iVolHigh
-                text: bar.audio ? Math.round(bar.audio.volume * 100) + "%" : "0%"
+                icon: (audio && !audio.muted && audio.volume > 0) ? Theme.iVolHigh : Theme.iVolOff
+                text: audio ? Math.round(audio.volume * 100) + "%" : "—"
                 onClicked: bar.togglePanel("audio", bar.modelData)
             }
 
-            // Calendar
             BarPill {
                 icon: Theme.iCal
                 text: Qt.formatDateTime(clock.date, "dd MMM")
                 onClicked: bar.togglePanel("cal", bar.modelData)
             }
 
-            // Clock
             BarPill {
                 icon: Theme.iClock
                 text: Qt.formatDateTime(clock.date, "HH:mm")
