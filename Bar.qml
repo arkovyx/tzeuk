@@ -185,6 +185,13 @@ PanelWindow {
                 tint: Net.wifiEnabled && Net.connected !== "" ? Theme.fg : Theme.dim
                 onClicked: bar.togglePanel("net", bar.modelData)
             }
+
+            BarPill {
+                icon: Notifs.dnd ? Theme.iBellOff : Theme.iBell
+                text: Notifs.count > 0 ? String(Notifs.count) : ""
+                tint: Notifs.dnd ? Theme.dim : Theme.fg
+                onClicked: bar.togglePanel("notif", bar.modelData)
+            }
         }
     }
 }
