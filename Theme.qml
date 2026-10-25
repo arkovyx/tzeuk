@@ -40,4 +40,27 @@ Singleton {
     readonly property string iBellOff: cp(0xF009B)
     readonly property string iVolHigh: cp(0xF057E)
     readonly property string iVolOff: cp(0xF0581)
+
+        // ICONS
+    // Network
+    readonly property string iWifiHigh: cp(0xF0928)   // 󰤨
+    readonly property string iWifiMed: cp(0xF0925)    // 󰤥
+    readonly property string iWifiLow: cp(0xF0922)    // 󰤢
+    readonly property string iWifiOff: cp(0xF05AA)    // 󰖪
+
+    // Audio
+    readonly property string iVolHigh: cp(0xF057E)    // 󰕾
+    readonly property string iVolMed: cp(0xF0580)     // 󰖀
+    readonly property string iVolLow: cp(0xF057F)     // 󰕿
+    readonly property string iVolMuted: cp(0xF0581)   // 󰖁
+
+    // Battery
+    readonly property string iBatFull: cp(0xF0079)    // 󰁹
+    readonly property string iBatCharging: cp(0xF0084) // 󰂄
+
+    // System
+    readonly property string iCpu: cp(0xF061A)        // 󰘚
+    readonly property string iMem: cp(0xF035B)        // 󰍛
+    readonly property string iCalendar: cp(0xF00ED)   // 󰃭
+    readonly property string iClock: cp(0xF0954)      // 󰥔
 }
