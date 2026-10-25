@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
+import Quickshell.Io
 
 PanelWindow {
     id: bar
@@ -176,6 +177,13 @@ PanelWindow {
                 icon: Theme.iClock
                 text: Qt.formatDateTime(clock.date, "HH:mm")
                 onClicked: {}
+            }
+
+            BarPill {
+                icon: !Net.wifiEnabled ? Theme.iWifiOff
+                      : (Net.connected !== "" ? Theme.wifiIcon(Net.signal) : Theme.iWifiOff)
+                tint: Net.wifiEnabled && Net.connected !== "" ? Theme.fg : Theme.dim
+                onClicked: bar.togglePanel("net", bar.modelData)
             }
         }
     }
