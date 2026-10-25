@@ -2,5 +2,13 @@ import QtQuick
 import Quickshell
 
 ShellRoot {
-    Bar {}
+    property bool panelOpen: false;
+
+    Bar {
+        onTogglePanel: panelOpen = !panelOpen
+    }
+
+    Panel {
+        opened: panleOpen
+    }
 }
