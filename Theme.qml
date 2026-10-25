@@ -33,34 +33,35 @@ Singleton {
     readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.5)
 
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
+
+    // --- All Icons (Consolidated) ---
+    // System / Clock
     readonly property string iClock: cp(0xF0954)
     readonly property string iCal: cp(0xF00ED)
-    readonly property string iWifiOff: cp(0xF05AA)
-    readonly property string iBell: cp(0xF009A)
-    readonly property string iBellOff: cp(0xF009B)
-    readonly property string iVolHigh: cp(0xF057E)
-    readonly property string iVolOff: cp(0xF0581)
-
-        // ICONS
-    // Network
-    readonly property string iWifiHigh: cp(0xF0928)   // 󰤨
-    readonly property string iWifiMed: cp(0xF0925)    // 󰤥
-    readonly property string iWifiLow: cp(0xF0922)    // 󰤢
-    readonly property string iWifiOff: cp(0xF05AA)    // 󰖪
 
     // Audio
-    readonly property string iVolHigh: cp(0xF057E)    // 󰕾
-    readonly property string iVolMed: cp(0xF0580)     // 󰖀
-    readonly property string iVolLow: cp(0xF057F)     // 󰕿
-    readonly property string iVolMuted: cp(0xF0581)   // 󰖁
+    readonly property string iVolHigh: cp(0xF057E)
+    readonly property string iVolMed: cp(0xF0580)
+    readonly property string iVolLow: cp(0xF057F)
+    readonly property string iVolOff: cp(0xF0581)
 
-    // Battery
-    readonly property string iBatFull: cp(0xF0079)    // 󰁹
-    readonly property string iBatCharging: cp(0xF0084) // 󰂄
+    // Network
+    readonly property string iWifiHigh: cp(0xF0928)
+    readonly property string iWifiMed: cp(0xF0925)
+    readonly property string iWifiLow: cp(0xF0922)
+    readonly property string iWifiOff: cp(0xF05AA)
 
-    // System
-    readonly property string iCpu: cp(0xF061A)        // 󰘚
-    readonly property string iMem: cp(0xF035B)        // 󰍛
-    readonly property string iCalendar: cp(0xF00ED)   // 󰃭
-    readonly property string iClock: cp(0xF0954)      // 󰥔
+    // Notifications
+    readonly property string iBell: cp(0xF009A)
+    readonly property string iBellOff: cp(0xF009B)
+
+    // Battery / System
+    readonly property string iBatFull: cp(0xF0079)
+    readonly property string iBatCharging: cp(0xF0084)
+    readonly property string iCpu: cp(0xF061A)
+    readonly property string iMem: cp(0xF035B)
+
+    function wifiIcon(sig) {
+        return sig >= 75 ? iWifiHigh : sig >= 50 ? iWifiMed : sig >= 25 ? iWifiLow : iWifiOff
+    }
 }
