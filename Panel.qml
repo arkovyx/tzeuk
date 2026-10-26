@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -7,20 +8,22 @@ PanelWindow {
     id: win
     property bool opened: false
     property bool grabActive: false
+    property string activeTab: "home"
+
+    signal tabChanged(string name)
+    signal closeRequested()
 
     visible: opened
     anchors { top: true; right: true }
     margins { top: 50; right: 12 }
-    implicitWidth: 400
-    implicitHeight: 500
+    implicitWidth: 480
+    implicitHeight: 600
     exclusiveZone: 0
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "tzeuk-panel"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-    // Delay the focus grab so the panel has time to gain focus before
-    // the grab watches for focus loss (prevents instant onCleared).
     onOpenedChanged: {
         if (opened) {
             grabDelay.start()
@@ -38,39 +41,135 @@ PanelWindow {
     HyprlandFocusGrab {
         windows: [win]
         active: win.grabActive
-        onCleared: win.opened = false
+        onCleared: win.closeRequested()
     }
 
-    Rectangle {
+    // --- Caelestia Style Animation (Slide + Fade) ---
+    Item {
         anchors.fill: parent
-        color: Theme.barBg
-        radius: 16
-        border.width: 2
-        border.color: Theme.accent
 
-        focus: true
-        Keys.onEscapePressed: win.opened = false
+        // Animate the scale and opacity when the panel opens
+        scale: win.opened ? 1.0 : 0.95
+        opacity: win.opened ? 1.0 : 0.0
 
-        Column {
-            anchors.centerIn: parent
-            spacing: 12
+        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
+        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "TZEUK PANEL"
-                color: Theme.accent
-                font.family: Theme.font
-                font.pixelSize: 22
-                font.bold: true
-                font.letterSpacing: 3
+        // Glassmorphism Background
+        Rectangle {
+            anchors.fill: parent
+            color: Theme.bg
+            opacity: 0.92 // Slightly transparent to see your wallpaper
+            radius: 20
+            border.width: 1
+            border.color: Theme.line
+
+            // Drop shadow effect (Caelestia style)
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -1
+                radius: 21
+                color: "transparent"
+                border.width: 1
+                border.color: Theme.accent
+                opacity: 0.3
+            }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            // --- Sidebar Tabs ---
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 80
+                color: "transparent"
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: 20
+                    spacing: 8
+
+                    Repeater {
+                        model: [
+                            { id: "home", icon: "󰋜", label: "Home" },
+                            { id: "audio", icon: Theme.iVolHigh, label: "Audio" },
+                            { id: "net", icon: Theme.iWifiHigh, label: "Net" },
+                            { id: "bt", icon: "󰂯", label: "BT" },
+                            { id: "sys", icon: "󰍛", label: "Sys" },
+                            { id: "notif", icon: Theme.iBell, label: "Notifs" }
+                        ]
+                        delegate: Item {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 56
+
+                            readonly property bool isActive: win.activeTab === modelData.id
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 56
+                                height: 56
+                                radius: 16
+                                color: isActive ? Theme.surfaceHi : (mouse.containsMouse ? Theme.surfaceHi : "transparent")
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 2
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: modelData.icon
+                                        color: isActive ? Theme.accent : Theme.fg
+                                        font.family: Theme.font
+                                        font.pixelSize: 20
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: modelData.label
+                                        color: isActive ? Theme.accent : Theme.dim
+                                        font.family: Theme.font
+                                        font.pixelSize: 10
+                                        font.bold: isActive
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                id: mouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: win.tabChanged(modelData.id)
+                            }
+                        }
+                    }
+                }
             }
 
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "Tabs coming soon..."
-                color: Theme.fg
-                font.family: Theme.font
-                font.pixelSize: 14
+            // --- Content Area ---
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
+
+                // We will replace these with the actual tab files later
+                Text {
+                    anchors.centerIn: parent
+                    text: {
+                        if (win.activeTab === "home") return "Home Tab (Coming Soon)"
+                        if (win.activeTab === "audio") return "Audio Tab (Coming Soon)"
+                        if (win.activeTab === "net") return "WiFi Tab (Coming Soon)"
+                        if (win.activeTab === "bt") return "Bluetooth Tab (Coming Soon)"
+                        if (win.activeTab === "sys") return "System Tab (Coming Soon)"
+                        if (win.activeTab === "notif") return "Notifications Tab (Coming Soon)"
+                        return ""
+                    }
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 16
+                }
             }
         }
     }
