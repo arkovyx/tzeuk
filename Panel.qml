@@ -16,8 +16,8 @@ PanelWindow {
     visible: opened
     anchors { top: true; right: true }
     margins { top: 50; right: 12 }
-    implicitWidth: 480
-    implicitHeight: 600
+    implicitWidth: 540
+    implicitHeight: 620
     exclusiveZone: 0
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -25,11 +25,8 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
     onOpenedChanged: {
-        if (opened) {
-            grabDelay.start()
-        } else {
-            grabActive = false
-        }
+        if (opened) grabDelay.start()
+        else grabActive = false
     }
 
     Timer {
@@ -44,43 +41,27 @@ PanelWindow {
         onCleared: win.closeRequested()
     }
 
-    // --- Caelestia Style Animation (Slide + Fade) ---
     Item {
         anchors.fill: parent
-
-        // Animate the scale and opacity when the panel opens
         scale: win.opened ? 1.0 : 0.95
         opacity: win.opened ? 1.0 : 0.0
-
         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
-        // Glassmorphism Background
         Rectangle {
             anchors.fill: parent
             color: Theme.bg
-            opacity: 0.92 // Slightly transparent to see your wallpaper
+            opacity: 0.92
             radius: 20
             border.width: 1
             border.color: Theme.line
-
-            // Drop shadow effect (Caelestia style)
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: -1
-                radius: 21
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.accent
-                opacity: 0.3
-            }
         }
 
         RowLayout {
             anchors.fill: parent
             spacing: 0
 
-            // --- Sidebar Tabs ---
+            // Sidebar
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 80
@@ -104,7 +85,6 @@ PanelWindow {
                             required property var modelData
                             Layout.fillWidth: true
                             implicitHeight: 56
-
                             readonly property bool isActive: win.activeTab === modelData.id
 
                             Rectangle {
@@ -148,18 +128,21 @@ PanelWindow {
                 }
             }
 
-            // --- Content Area ---
-            Rectangle {
+            // Content Area
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "transparent"
 
-                // We will replace these with the actual tab files later
                 Loader {
                     anchors.fill: parent
-                    sourceComponent: {
-                        if (win.activeTab === "sys") return sysPage
-                        return null
+                    source: {
+                        if (win.activeTab === "sys") return "SysPage.qml"
+                        return ""
+                    }
+                    // Log errors to console so we can see what fails
+                    onStatusChanged: {
+                        if (status === Loader.Error)
+                            console.log("Loader error:", win.activeTab)
                     }
                 }
 
