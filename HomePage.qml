@@ -202,7 +202,52 @@ Item {
                 }
             }
 
-            // Placeholders for now
+            // --- Power ---
+            Text {
+                text: "POWER"
+                color: Theme.accent
+                font.family: Theme.font
+                font.pixelSize: 11
+                font.bold: true
+                font.letterSpacing: 2
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Repeater {
+                    model: [
+                        { id: "lock", icon: "󰌾" },
+                        { id: "sleep", icon: "󰒲" },
+                        { id: "leave", icon: "󰗽" },
+                        { id: "reboot", icon: "󰜉" },
+                        { id: "shutdown", icon: "󰐥" }
+                    ]
+                    delegate: Rectangle {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        height: 36; radius: 10
+                        color: mouse.containsMouse ? Theme.err : Theme.surfaceHi
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.icon
+                            color: mouse.containsMouse ? Theme.bg : Theme.fg
+                            font.family: Theme.font
+                            font.pixelSize: 16
+                        }
+                        MouseArea {
+                            id: mouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Session.run(modelData.id)
+                        }
+                    }
+                }
+            }
+
             Item { Layout.fillHeight: true }
         }
     }
