@@ -4,18 +4,19 @@ import QtQuick.Layouts
 Item {
     id: page
 
-    // --- The Circular Ring Component ---
     component StatRing: Item {
         id: ring
         property real value: 0
         property color ringColor: Theme.accent
         property string label: ""
         property string valueText: ""
-        property int size: 90
+        property int size: 84
         property real strokeWidth: 6
 
         implicitWidth: size
-        implicitHeight: size + 26
+        implicitHeight: size + 24
+        Layout.preferredWidth: size
+        Layout.preferredHeight: size + 24
 
         Canvas {
             id: canvas
@@ -24,6 +25,11 @@ Item {
             width: ring.size
             height: ring.size
 
+            // Force the first paint
+            Component.onCompleted: requestPaint()
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
@@ -31,14 +37,12 @@ Item {
                 var cy = height / 2
                 var r = (width - ring.strokeWidth) / 2
 
-                // Background track (faint circle)
                 ctx.beginPath()
                 ctx.arc(cx, cy, r, 0, Math.PI * 2)
-                ctx.strokeStyle = "rgba(255,255,255,0.08)"
+                ctx.strokeStyle = "rgba(255,255,255,0.10)"
                 ctx.lineWidth = ring.strokeWidth
                 ctx.stroke()
 
-                // Progress arc (starts at top, goes clockwise)
                 if (ring.value > 0) {
                     ctx.beginPath()
                     var start = -Math.PI / 2
@@ -55,17 +59,15 @@ Item {
         onValueChanged: canvas.requestPaint()
         onRingColorChanged: canvas.requestPaint()
 
-        // Center value text
         Text {
             anchors.centerIn: canvas
             text: ring.valueText
             color: Theme.fg
             font.family: Theme.font
-            font.pixelSize: ring.valueText.length > 5 ? 11 : 14
+            font.pixelSize: ring.valueText.length > 5 ? 10 : 13
             font.bold: true
         }
 
-        // Label below the ring
         Text {
             anchors.top: canvas.bottom
             anchors.topMargin: 6
@@ -79,7 +81,6 @@ Item {
         }
     }
 
-    // --- Content ---
     Flickable {
         anchors.fill: parent
         anchors.margins: 20
@@ -93,7 +94,6 @@ Item {
             width: parent.width
             spacing: 24
 
-            // Header
             Text {
                 text: "SYSTEM"
                 color: Theme.accent
@@ -103,11 +103,9 @@ Item {
                 font.letterSpacing: 3
             }
 
-            // Top row: CPU, MEM, BAT, UPTIME
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 12
+                spacing: 14
 
                 StatRing {
                     value: SysStats.cpu
@@ -119,7 +117,7 @@ Item {
                     value: SysStats.memTotal > 0 ? SysStats.memUsed / SysStats.memTotal : 0
                     valueText: Math.round((SysStats.memTotal > 0 ? SysStats.memUsed / SysStats.memTotal : 0) * 100) + "%"
                     label: "MEM"
-                    ringColor: Qt.color("#e5a25c")
+                    ringColor: "#e5a25c"
                 }
                 StatRing {
                     visible: SysStats.hasBat
@@ -136,28 +134,20 @@ Item {
                 }
             }
 
-            // Details row (for mem/uptime text)
-            RowLayout {
+            Text {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 20
-
-                Text {
-                    text: "Mem: " + SysStats.fmtSize(SysStats.memUsed) + " / " + SysStats.fmtSize(SysStats.memTotal)
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: 10
-                }
+                text: "Memory: " + SysStats.fmtSize(SysStats.memUsed) + " / " + SysStats.fmtSize(SysStats.memTotal)
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 11
             }
 
-            // Divider
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
                 color: Theme.line
             }
 
-            // Storage Section
             Text {
                 text: "STORAGE"
                 color: Theme.accent
@@ -169,7 +159,7 @@ Item {
 
             Flow {
                 Layout.fillWidth: true
-                spacing: 12
+                spacing: 14
 
                 Repeater {
                     model: SysStats.disks
@@ -182,7 +172,6 @@ Item {
                     }
                 }
 
-                // No disks fallback
                 Text {
                     visible: SysStats.disks.length === 0
                     text: "No local partitions detected"
