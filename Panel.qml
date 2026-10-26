@@ -155,17 +155,23 @@ PanelWindow {
                 color: "transparent"
 
                 // We will replace these with the actual tab files later
+                Loader {
+                    anchors.fill: parent
+                    sourceComponent: {
+                        if (win.activeTab === "sys") return sysPage
+                        return null
+                    }
+                }
+
                 Text {
                     anchors.centerIn: parent
-                    text: {
-                        if (win.activeTab === "home") return "Home Tab (Coming Soon)"
-                        if (win.activeTab === "audio") return "Audio Tab (Coming Soon)"
-                        if (win.activeTab === "net") return "WiFi Tab (Coming Soon)"
-                        if (win.activeTab === "bt") return "Bluetooth Tab (Coming Soon)"
-                        if (win.activeTab === "sys") return "System Tab (Coming Soon)"
-                        if (win.activeTab === "notif") return "Notifications Tab (Coming Soon)"
-                        return ""
-                    }
+                    visible: win.activeTab !== "sys"
+                    text: win.activeTab === "home" ? "Home Tab (Coming Soon)"
+                        : win.activeTab === "audio" ? "Audio Tab (Coming Soon)"
+                        : win.activeTab === "net" ? "WiFi Tab (Coming Soon)"
+                        : win.activeTab === "bt" ? "Bluetooth Tab (Coming Soon)"
+                        : win.activeTab === "notif" ? "Notifications Tab (Coming Soon)"
+                        : ""
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 16
