@@ -31,6 +31,7 @@ Singleton {
     readonly property color surfaceHi: Qt.rgba(fg.r, fg.g, fg.b, 0.1)
     readonly property color line: Qt.rgba(fg.r, fg.g, fg.b, 0.2)
     readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.5)
+    readonly property color err: Qt.rgba(0.9, 0.3, 0.3, 1) // Red for critical states
 
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
 
