@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Pipewire
+import Quickshell.Bluetooth
 
 Item {
     id: page
@@ -60,6 +61,59 @@ Item {
                         }
                         onPressed: (mouse) => Bright.setPercent(Math.max(1, Math.min(100, (mouse.x / width) * 100)))
                     }
+                }
+            }
+
+            // --- Quick Toggles ---
+            Text {
+                text: "TOGGLES"
+                color: Theme.accent
+                font.family: Theme.font
+                font.pixelSize: 11
+                font.bold: true
+                font.letterSpacing: 2
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                // WiFi
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36; radius: 10
+                    color: Net.wifiEnabled ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: Theme.iWifiHigh; color: Net.wifiEnabled ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.setWifi(!Net.wifiEnabled) }
+                }
+
+                // BT
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36; radius: 10
+                    readonly property var ad: Bluetooth.defaultAdapter
+                    color: (ad && ad.enabled) ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: "󰂯"; color: (parent.ad && parent.ad.enabled) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.ad) parent.ad.enabled = !parent.ad.enabled }
+                }
+
+                // DND
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36; radius: 10
+                    color: Notifs.dnd ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: Notifs.dnd ? Theme.iBellOff : Theme.iBell; color: Notifs.dnd ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Notifs.dnd = !Notifs.dnd }
+                }
+
+                // Mic
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 36; radius: 10
+                    readonly property var mic: Pipewire.defaultAudioSource ? Pipewire.defaultAudioSource.audio : null
+                    color: (mic && !mic.muted) ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: (parent.mic && !parent.mic.muted) ? "󰍬" : "󰍭"; color: (parent.mic && !parent.mic.muted) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.mic) parent.mic.muted = !parent.mic.muted }
                 }
             }
 
