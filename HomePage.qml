@@ -28,6 +28,41 @@ Item {
                 font.letterSpacing: 3
             }
 
+            // --- Brightness ---
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                RowLayout {
+                    Text { text: "󰃠"; color: Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    Text { Layout.fillWidth: true; text: "Brightness"; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13 }
+                    Text { text: Bright.percent + "%"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 13; font.bold: true }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 8
+                    radius: 4
+                    color: Theme.surfaceHi
+
+                    Rectangle {
+                        width: parent.width * (Bright.percent / 100)
+                        height: parent.height
+                        radius: 4
+                        color: Theme.accent
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onPositionChanged: (mouse) => {
+                            if (pressed) Bright.setPercent(Math.max(1, Math.min(100, (mouse.x / width) * 100)))
+                        }
+                        onPressed: (mouse) => Bright.setPercent(Math.max(1, Math.min(100, (mouse.x / width) * 100)))
+                    }
+                }
+            }
+
             // --- Media Player ---
             Rectangle {
                 Layout.fillWidth: true
