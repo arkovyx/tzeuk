@@ -136,19 +136,15 @@ PanelWindow {
                 Loader {
                     anchors.fill: parent
                     source: {
+                        if (win.activeTab === "home") return "HomePage.qml"
                         if (win.activeTab === "sys") return "SysPage.qml"
                         return ""
-                    }
-                    // Log errors to console so we can see what fails
-                    onStatusChanged: {
-                        if (status === Loader.Error)
-                            console.log("Loader error:", win.activeTab)
                     }
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    visible: win.activeTab !== "sys"
+                    visible: win.activeTab !== "sys" && win.activeTab !== "home"
                     text: win.activeTab === "home" ? "Home Tab (Coming Soon)"
                         : win.activeTab === "audio" ? "Audio Tab (Coming Soon)"
                         : win.activeTab === "net" ? "WiFi Tab (Coming Soon)"
