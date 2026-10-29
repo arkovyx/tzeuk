@@ -7,6 +7,22 @@ import Quickshell.Bluetooth
 Item {
     id: page
 
+    // Helper to format seconds to m:ss
+    function fmtTime(s) {
+        if (!s || s <= 0) return "0:00"
+        var m = Math.floor(s / 60)
+        var r = Math.floor(s % 60)
+        return m + ":" + (r < 10 ? "0" : "") + r
+    }
+
+    // Timer to poke MPRIS for position updates
+    Timer {
+        running: MediaPlayer.hasMedia && MediaPlayer.player && MediaPlayer.player.isPlaying
+        interval: 500
+        repeat: true
+        onTriggered: if (MediaPlayer.player) MediaPlayer.player.positionChanged()
+    }
+
     Flickable {
         anchors.fill: parent
         anchors.margins: 20
@@ -18,7 +34,7 @@ Item {
         ColumnLayout {
             id: col
             width: parent.width
-            spacing: 14 // Compacted from 20
+            spacing: 14
 
             Text {
                 text: "HOME"
@@ -67,7 +83,7 @@ Item {
             // --- Media Player ---
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: visible ? 80 : 0 // Compacted from 90
+                implicitHeight: visible ? 95 : 0 // Increased height for the progress bar
                 visible: MediaPlayer.hasMedia
                 color: Theme.surfaceHi
                 radius: 12
@@ -77,11 +93,13 @@ Item {
                     anchors.margins: 10
                     spacing: 12
 
+                    // Album Art
                     Rectangle {
-                        Layout.preferredWidth: 60
-                        Layout.preferredHeight: 60
+                        Layout.preferredWidth: 64
+                        Layout.preferredHeight: 64
                         radius: 8
                         color: Theme.bg
+                        Layout.alignment: Qt.AlignVCenter
 
                         Image {
                             anchors.fill: parent
@@ -100,28 +118,105 @@ Item {
                         }
                     }
 
+                    // Track Info, Progress & Controls
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 4
 
-                        Text {
+                        // Title & Artist
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: MediaPlayer.player ? (MediaPlayer.player.trackTitle || "Unknown") : ""
-                            color: Theme.fg
-                            font.family: Theme.font
-                            font.pixelSize: 14
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: MediaPlayer.player ? (MediaPlayer.player.trackArtist || "Unknown Artist") : ""
-                            color: Theme.dim
-                            font.family: Theme.font
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
+                            spacing: 0
+                            Text {
+                                Layout.fillWidth: true
+                                text: MediaPlayer.player ? (MediaPlayer.player.trackTitle || "Unknown") : ""
+                                color: Theme.fg
+                                font.family: Theme.font
+                                font.pixelSize: 13
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: MediaPlayer.player ? (MediaPlayer.player.trackArtist || "Unknown Artist") : ""
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
                         }
 
+                        // Interactive Progress Bar
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 12
+                            visible: MediaPlayer.player && MediaPlayer.player.length > 0
+
+                            readonly property var p: MediaPlayer.player
+                            readonly property real progress: (p && p.length > 0) ? (p.position / p.length) : 0
+
+                            // Time Text (Left)
+                            Text {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: page.fmtTime(parent.p ? parent.p.position : 0)
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 9
+                            }
+
+                            // Time Text (Right)
+                            Text {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: page.fmtTime(parent.p ? parent.p.length : 0)
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 9
+                            }
+
+                            // The track
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.leftMargin: 28
+                                anchors.rightMargin: 28
+                                anchors.verticalCenter: parent.verticalCenter
+                                height: 4
+                                radius: 2
+                                color: Theme.surface
+
+                                Rectangle {
+                                    width: parent.width * Math.max(0, Math.min(1, parent.parent.progress))
+                                    height: parent.height
+                                    radius: 2
+                                    color: Theme.accent
+                                }
+                            }
+
+                            // The interactive hit area
+                            MouseArea {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.leftMargin: 28
+                                anchors.rightMargin: 28
+                                anchors.verticalCenter: parent.verticalCenter
+                                height: 16
+                                cursorShape: Qt.PointingHandCursor
+
+                                function seek(mx) {
+                                    if (parent.p && parent.p.canSeek && parent.p.length > 0) {
+                                        var ratio = Math.max(0, Math.min(1, mx / width))
+                                        parent.p.position = ratio * parent.p.length
+                                    }
+                                }
+                                onPressed: (mouse) => seek(mouse.x)
+                                onPositionChanged: (mouse) => { if (pressed) seek(mouse.x) }
+                            }
+                        }
+
+                        // Controls
                         RowLayout {
                             spacing: 8
                             Rectangle {
@@ -250,12 +345,12 @@ Item {
             // --- Circular Audio Visualizer ---
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(col.width - 20, 210) // Reduced height
+                Layout.preferredHeight: Math.min(col.width - 20, 210)
                 Layout.topMargin: 0
 
                 Visualizer {
                     anchors.centerIn: parent
-                    diameter: Math.min(parent.width - 20, 200) // Reduced diameter
+                    diameter: Math.min(parent.width - 20, 200)
                 }
             }
 
