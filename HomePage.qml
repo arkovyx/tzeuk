@@ -82,18 +82,51 @@ Item {
 
             // --- Media Player ---
             Rectangle {
+                id: mediaCard
                 Layout.fillWidth: true
-                implicitHeight: visible ? 95 : 0 // Increased height for the progress bar
+                implicitHeight: visible ? 95 : 0
                 visible: MediaPlayer.hasMedia
                 color: Theme.surfaceHi
                 radius: 12
+
+                readonly property var p: MediaPlayer.player
+
+                // Robust duration reading (MPD's `length` is often 0)
+                readonly property real duration: {
+                    if (!p) return 0
+                    // Try the direct property first
+                    var l = p.length
+                    if (l && l > 0 && l < 86400 * 7) return l
+                    // Fallback to metadata (microseconds per MPRIS spec)
+                    var meta = p.metadata || {}
+                    var raw = meta["mpris:length"]
+                    if (raw) {
+                        var ml = Number(raw)
+                        if (ml > 0) return ml > 10000 ? ml / 1000000 : ml
+                    }
+                    return 0
+                }
+
+                // Robust position reading
+                readonly property real position: {
+                    if (!p) return 0
+                    var pos = p.position || 0
+                    // If position exceeds duration and dividing by 1e6 fits, it's microseconds
+                    if (duration > 0 && pos > duration && (pos / 1000000) <= duration) {
+                        return pos / 1000000
+                    }
+                    return pos
+                }
+
+                readonly property real progress: duration > 0
+                    ? Math.min(1.0, Math.max(0.0, position / duration))
+                    : 0
 
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 12
 
-                    // Album Art
                     Rectangle {
                         Layout.preferredWidth: 64
                         Layout.preferredHeight: 64
@@ -103,7 +136,7 @@ Item {
 
                         Image {
                             anchors.fill: parent
-                            source: MediaPlayer.player ? MediaPlayer.player.trackArtUrl : ""
+                            source: mediaCard.p ? mediaCard.p.trackArtUrl : ""
                             fillMode: Image.PreserveAspectCrop
                             visible: status === Image.Ready
                             asynchronous: true
@@ -118,19 +151,17 @@ Item {
                         }
                     }
 
-                    // Track Info, Progress & Controls
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
                         spacing: 4
 
-                        // Title & Artist
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
                             Text {
                                 Layout.fillWidth: true
-                                text: MediaPlayer.player ? (MediaPlayer.player.trackTitle || "Unknown") : ""
+                                text: mediaCard.p ? (mediaCard.p.trackTitle || "Unknown") : ""
                                 color: Theme.fg
                                 font.family: Theme.font
                                 font.pixelSize: 13
@@ -139,7 +170,7 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: MediaPlayer.player ? (MediaPlayer.player.trackArtist || "Unknown Artist") : ""
+                                text: mediaCard.p ? (mediaCard.p.trackArtist || "Unknown Artist") : ""
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 11
@@ -151,32 +182,26 @@ Item {
                         Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 12
-                            visible: MediaPlayer.player && MediaPlayer.player.length > 0
+                            visible: mediaCard.duration > 0
 
-                            readonly property var p: MediaPlayer.player
-                            readonly property real progress: (p && p.length > 0) ? (p.position / p.length) : 0
-
-                            // Time Text (Left)
                             Text {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: page.fmtTime(parent.p ? parent.p.position : 0)
+                                text: page.fmtTime(mediaCard.position)
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 9
                             }
 
-                            // Time Text (Right)
                             Text {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: page.fmtTime(parent.p ? parent.p.length : 0)
+                                text: page.fmtTime(mediaCard.duration)
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 9
                             }
 
-                            // The track
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
@@ -188,14 +213,13 @@ Item {
                                 color: Theme.surface
 
                                 Rectangle {
-                                    width: parent.width * Math.max(0, Math.min(1, parent.parent.progress))
+                                    width: parent.width * mediaCard.progress
                                     height: parent.height
                                     radius: 2
                                     color: Theme.accent
                                 }
                             }
 
-                            // The interactive hit area
                             MouseArea {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
@@ -206,15 +230,40 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
 
                                 function seek(mx) {
-                                    if (parent.p && parent.p.canSeek && parent.p.length > 0) {
+                                    if (mediaCard.p && mediaCard.p.canSeek && mediaCard.duration > 0) {
                                         var ratio = Math.max(0, Math.min(1, mx / width))
-                                        parent.p.position = ratio * parent.p.length
+                                        mediaCard.p.position = ratio * mediaCard.duration
                                     }
                                 }
                                 onPressed: (mouse) => seek(mouse.x)
                                 onPositionChanged: (mouse) => { if (pressed) seek(mouse.x) }
                             }
                         }
+
+                        RowLayout {
+                            spacing: 8
+                            Rectangle {
+                                width: 24; height: 24; radius: 12
+                                color: m1.containsMouse ? Theme.surfaceHi : "transparent"
+                                Text { anchors.centerIn: parent; text: "󰒮"; color: Theme.fg; font.family: Theme.font }
+                                MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canGoPrevious) mediaCard.p.previous() }
+                            }
+                            Rectangle {
+                                width: 24; height: 24; radius: 12
+                                color: m2.containsMouse ? Theme.surfaceHi : "transparent"
+                                Text { anchors.centerIn: parent; text: mediaCard.p?.isPlaying ? "󰏤" : "󰐊"; color: Theme.accent; font.family: Theme.font }
+                                MouseArea { id: m2; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canTogglePlaying) mediaCard.p.togglePlaying() }
+                            }
+                            Rectangle {
+                                width: 24; height: 24; radius: 12
+                                color: m3.containsMouse ? Theme.surfaceHi : "transparent"
+                                Text { anchors.centerIn: parent; text: "󰒭"; color: Theme.fg; font.family: Theme.font }
+                                MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canGoNext) mediaCard.p.next() }
+                            }
+                        }
+                    }
+                }
+            }
 
                         // Controls
                         RowLayout {
