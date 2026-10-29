@@ -179,9 +179,10 @@ PanelWindow {
                 onClicked: {}
             }
 
+            // WiFi
             BarPill {
                 icon: !Net.wifiEnabled ? Theme.iWifiOff
-                      : (Net.connected !== "" ? Theme.wifiIcon(Net.signal) : Theme.iWifiOff)
+                      : (Net.connected !== "" ? Theme.wifiIcon(Net.activeSignal) : Theme.iWifiOff)
                 tint: Net.wifiEnabled && Net.connected !== "" ? Theme.fg : Theme.dim
                 onClicked: bar.togglePanel("net", bar.modelData)
             }
