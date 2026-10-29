@@ -8,7 +8,6 @@ ShellRoot {
     property var panelScreen: null
     property string activeTab: "home"
 
-    // Bind every Pipewire node so volume / mute are reactively tracked
     PwObjectTracker {
         objects: Pipewire.nodes.values
     }
@@ -17,7 +16,6 @@ ShellRoot {
         model: Quickshell.screens
         Bar {
             onTogglePanel: function(name, scr) {
-                // If the panel is open on the same tab, close it
                 if (root.panelOpen && root.activeTab === name) {
                     root.panelOpen = false
                 } else {
@@ -43,5 +41,14 @@ ShellRoot {
         screen: root.panelScreen !== null
             ? root.panelScreen
             : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
+    }
+
+    Variants {
+        model: Quickshell.screens
+        NotifPopup {
+            // Suppress popups on the focused screen while the panel is open
+            // to prevent them from stacking over the panel
+            suppressed: root.panelOpen && screen === root.panelScreen
+        }
     }
 }
