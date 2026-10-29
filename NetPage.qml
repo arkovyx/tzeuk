@@ -3,8 +3,6 @@ import QtQuick.Layouts
 
 Item {
     id: page
-    Component.onCompleted: Net.active = true
-    Component.onDestruction: Net.active = false
 
     Flickable {
         anchors.fill: parent
@@ -22,14 +20,27 @@ Item {
             // --- Header ---
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "NETWORK"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 16; font.bold: true; font.letterSpacing: 3 }
+
+                Text {
+                    text: "NETWORK"
+                    color: Theme.accent
+                    font.family: Theme.font
+                    font.pixelSize: 16
+                    font.bold: true
+                    font.letterSpacing: 3
+                }
+
                 Item { Layout.fillWidth: true }
+
+                // Refresh
                 Rectangle {
                     width: 28; height: 28; radius: 14
                     color: m1.containsMouse ? Theme.surfaceHi : "transparent"
-                    Text { anchors.centerIn: parent; text: "󰑐"; color: Net.scanning ? Theme.accent : Theme.fg; font.family: Theme.font }
+                    Text { anchors.centerIn: parent; text: "󰑐"; color: Net.scanning ? Theme.accent : Theme.fg; font.family: Theme.font; font.pixelSize: 14 }
                     MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Net.rescan() }
                 }
+
+                // WiFi toggle
                 Rectangle {
                     width: 44; height: 24; radius: 12
                     color: Net.wifiEnabled ? Theme.accent : Theme.surfaceHi
@@ -45,83 +56,73 @@ Item {
                 }
             }
 
-            // --- Status text ---
+            // --- Status ---
             Text {
                 Layout.fillWidth: true
-                text: {
-                    if (!Net.wifiEnabled) return "Wi-Fi is off"
-                    if (Net.busy) return "Connecting to " + Net.lastSsid + "…"
-                    if (Net.connected !== "") return "Connected to " + Net.connected
-                    return "Not connected"
-                }
-                color: Net.busy ? Theme.accent : (Net.connected !== "" ? Theme.accent : Theme.dim)
+                text: !Net.wifiEnabled
+                    ? "Wi-Fi is off"
+                    : (Net.connected !== "" ? "Connected to " + Net.connected : "Not connected")
+                color: Net.connected !== "" && Net.wifiEnabled ? Theme.accent : Theme.dim
                 font.family: Theme.font
                 font.pixelSize: 11
-                font.italic: Net.busy
             }
 
-            // --- Wired / Tethering ---
-            ColumnLayout {
-                visible: Net.wiredDevs.length > 0
+            // --- Manage button ---
+            Rectangle {
                 Layout.fillWidth: true
-                spacing: 6
-                Text { text: "WIRED"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2 }
-                Repeater {
-                    model: Net.wiredDevs
-                    delegate: Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        height: 48
-                        radius: 10
-                        color: Theme.surfaceHi
-                        border.width: 1
-                        border.color: Theme.line
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 12
-                            Text { text: modelData.usb ? "󰢹" : "󰈀"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 18 }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text { text: modelData.name; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: true }
-                                Text { text: modelData.dev + (modelData.ip !== "" ? " · " + modelData.ip : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: 10 }
-                            }
-                            Rectangle {
-                                visible: Net.portal && Net.portalNet === modelData.name
-                                width: 28; height: 28; radius: 8; color: Theme.accent
-                                Text { anchors.centerIn: parent; text: "󰍃"; color: Theme.bg; font.family: Theme.font }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.openPortal() }
-                            }
-                            Rectangle {
-                                width: 28; height: 28; radius: 8
-                                color: m2.containsMouse ? Theme.err : "transparent"
-                                Text { anchors.centerIn: parent; text: "󰅖"; color: m2.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font }
-                                MouseArea { id: m2; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Net.disconnectDev(modelData.dev) }
-                            }
-                        }
+                height: 44
+                radius: 10
+                color: manageHover.containsMouse ? Theme.accent : Theme.surfaceHi
+                Behavior on color { ColorAnimation { duration: 150 } }
+                border.width: 1
+                border.color: Theme.line
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+                    Text {
+                        text: "󰆍"
+                        color: manageHover.containsMouse ? Theme.bg : Theme.accent
+                        font.family: Theme.font
+                        font.pixelSize: 16
+                    }
+                    Text {
+                        text: "Manage connections (nmtui)"
+                        color: manageHover.containsMouse ? Theme.bg : Theme.fg
+                        font.family: Theme.font
+                        font.pixelSize: 13
+                        font.bold: true
                     }
                 }
+                MouseArea {
+                    id: manageHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Net.openNmtui()
+                }
             }
 
-            // Error message
-            Text {
+            // --- Divider ---
+            Rectangle {
                 Layout.fillWidth: true
-                visible: Net.message !== ""
-                text: Net.message
-                color: Theme.err
-                font.family: Theme.font
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
+                Layout.preferredHeight: 1
+                color: Theme.line
             }
 
-            // --- Wireless List ---
-            Text { text: "NETWORKS"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2 }
+            // --- Network list (read-only) ---
+            Text {
+                text: "AVAILABLE NETWORKS"
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 10
+                font.bold: true
+                font.letterSpacing: 2
+            }
 
             Text {
                 visible: !Net.wifiEnabled
                 Layout.fillWidth: true
-                Layout.topMargin: 10
                 horizontalAlignment: Text.AlignHCenter
                 text: "Wi-Fi is turned off"
                 color: Theme.dim
@@ -136,131 +137,75 @@ Item {
 
                 Repeater {
                     model: Net.wifiEnabled ? Net.networks : []
-                    delegate: ColumnLayout {
+                    delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
-                        spacing: 6
+                        height: 44
+                        radius: 10
+                        color: modelData.inUse ? Theme.surfaceHi : "transparent"
+                        border.width: modelData.inUse ? 1 : 0
+                        border.color: Theme.accent
 
-                        // Network Row
-                        Rectangle {
-                            Layout.fillWidth: true
-                            height: 48
-                            radius: 10
-                            color: modelData.inUse ? Theme.surfaceHi : (rowHover.containsMouse ? Theme.surfaceHi : "transparent")
-                            border.width: modelData.inUse ? 1 : 0
-                            border.color: Theme.accent
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 12
 
-                            // ⚠️ rowHover is declared FIRST (behind) so buttons on top can receive clicks
-                            MouseArea {
-                                id: rowHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Net.connectTo(modelData)
+                            Text {
+                                text: modelData.signal > 75 ? Theme.iWifiHigh
+                                    : modelData.signal > 50 ? Theme.iWifiMed
+                                    : modelData.signal > 25 ? Theme.iWifiLow
+                                    : Theme.iWifiOff
+                                color: modelData.inUse ? Theme.accent : Theme.fg
+                                font.family: Theme.font
+                                font.pixelSize: 16
                             }
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 12
-
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
                                 Text {
-                                    text: modelData.signal > 75 ? Theme.iWifiHigh : modelData.signal > 50 ? Theme.iWifiMed : modelData.signal > 25 ? Theme.iWifiLow : Theme.iWifiOff
-                                    color: modelData.inUse ? Theme.accent : Theme.fg
-                                    font.family: Theme.font
-                                    font.pixelSize: 18
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-                                    Text { text: modelData.ssid; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: modelData.inUse }
-                                    Text {
-                                        text: {
-                                            if (modelData.inUse && Net.busy) return "Connecting…"
-                                            if (modelData.inUse) return "Connected"
-                                            if (modelData.saved) return "Saved"
-                                            return modelData.security === "" ? "Open" : modelData.security
-                                        }
-                                        color: modelData.inUse ? Theme.accent : Theme.dim
-                                        font.family: Theme.font
-                                        font.pixelSize: 10
-                                    }
-                                }
-                                Text { text: modelData.signal + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 }
-                                Text { visible: modelData.security !== "" && !modelData.inUse; text: "󰌾"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 }
-
-                                // Disconnect button — on top of rowHover
-                                Rectangle {
-                                    visible: modelData.inUse
-                                    width: 28; height: 28; radius: 8
-                                    color: m3.containsMouse ? Theme.err : "transparent"
-                                    Text { anchors.centerIn: parent; text: "󰅖"; color: m3.containsMouse ? Theme.bg : Theme.fg; font.family: Theme.font }
-                                    MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Net.disconnect() }
-                                }
-                            }
-                        }
-
-                        // Password Prompt
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: visible ? 44 : 0
-                            visible: Net.askFor === modelData.ssid
-                            radius: 10
-                            color: Theme.surface
-                            border.width: 1
-                            border.color: Theme.accent
-                            onVisibleChanged: if (visible) passInput.forceActiveFocus()
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 8
-                                spacing: 8
-
-                                TextInput {
-                                    id: passInput
-                                    Layout.fillWidth: true
-                                    echoMode: TextInput.Password
+                                    text: modelData.ssid
                                     color: Theme.fg
-                                    selectionColor: Theme.accent
                                     font.family: Theme.font
                                     font.pixelSize: 12
-                                    clip: true
-
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible: passInput.text === ""
-                                        text: "Password..."
-                                        color: Theme.dim
-                                        font.family: Theme.font
-                                        font.pixelSize: 12
-                                    }
-
-                                    Keys.onReturnPressed: {
-                                        Net.connect(modelData.ssid, text)
-                                        Net.askFor = ""
-                                    }
+                                    font.bold: modelData.inUse
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
                                 }
-
-                                Rectangle {
-                                    width: 28; height: 28; radius: 8
-                                    color: Theme.accent
-                                    Text { anchors.centerIn: parent; text: "󰁕"; color: Theme.bg; font.family: Theme.font }
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            Net.connect(modelData.ssid, passInput.text)
-                                            Net.askFor = ""
-                                        }
-                                    }
+                                Text {
+                                    text: modelData.inUse ? "Connected"
+                                        : (modelData.security === "" || modelData.security === "--" ? "Open" : modelData.security)
+                                    color: modelData.inUse ? Theme.accent : Theme.dim
+                                    font.family: Theme.font
+                                    font.pixelSize: 9
                                 }
+                            }
+
+                            Text {
+                                text: modelData.signal + "%"
+                                color: Theme.dim
+                                font.family: Theme.font
+                                font.pixelSize: 10
                             }
                         }
                     }
                 }
+
+                Text {
+                    visible: Net.wifiEnabled && Net.networks.length === 0
+                    Layout.fillWidth: true
+                    Layout.topMargin: 10
+                    horizontalAlignment: Text.AlignHCenter
+                    text: "No networks found"
+                    color: Theme.dim
+                    font.family: Theme.font
+                    font.pixelSize: 11
+                    font.italic: true
+                }
             }
 
-            Item { Layout.fillHeight: true }
+            Item { Layout.preferredHeight: 10 }
         }
     }
 }
