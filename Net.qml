@@ -21,6 +21,8 @@ Singleton {
     property string lastSsid: ""
     property bool lastWasNew: false
 
+    // Backward-compat alias
+    readonly property int signal: activeSignal
     readonly property var networks: build(raw, savedNames)
     readonly property int activeSignal: {
         for (var i = 0; i < raw.length; i++) if (raw[i].inUse) return raw[i].signal
@@ -31,7 +33,7 @@ Singleton {
         return ""
     }
 
-    // --- Captive Portal Logic ---
+    // --- Captive Portal ---
     readonly property string probeUrl: "http://connectivitycheck.gstatic.com/generate_204"
     property string connectivity: "unknown"
     property bool portalProbed: false
@@ -58,12 +60,10 @@ Singleton {
             portalSeen = ""
         }
     }
-
     function probe(manual) {
         if (manual) probeManual = true
         if (!probeProc.running) probeProc.running = true
     }
-
     function gotProbe(text) {
         var m = /^(\d+) ?(.*)$/.exec(text.trim()), code = m ? m[1] : "000", url = m ? m[2] : ""
         var manual = probeManual
@@ -83,14 +83,12 @@ Singleton {
         if (manual) { openPortal(); return }
         if (portalSeen === portalNet) return
         portalSeen = portalNet
-        openPortal() // We auto-open portals by default in TZEUK
+        openPortal()
         Quickshell.execDetached(["notify-send", "-a", "tzeuk", "sign in to " + (portalNet !== "" ? portalNet : "network")])
     }
-
     function openPortal() {
         Quickshell.execDetached(["sh", "-c", 'exec ${BROWSER:-xdg-open} "$1"', "sh", portalUrl !== "" ? portalUrl : probeUrl])
     }
-
     function signIn() {
         if (portal && portalUrl !== "") openPortal()
         else probe(true)
@@ -146,7 +144,6 @@ Singleton {
     function refresh() {
         radioProc.running = true; devProc.running = true; savedProc.running = true; listProc.running = true; connProc.running = true
     }
-
     function rescan() {
         scanning = true
         rescanProc.running = true
@@ -156,11 +153,13 @@ Singleton {
     function run(args) {
         if (busy) return
         busy = true
+        busyTimeout.restart()
         runProc.command = ["sh", "-c", 'out=$(nmcli "$@" 2>&1); rc=$?; printf "%s\\n%d" "$out" "$rc"', "sh"].concat(args)
         runProc.running = true
     }
 
     function finish(text) {
+        busyTimeout.stop()
         busy = false
         var lines = text.split("\n")
         var rc = parseInt(lines.pop())
@@ -200,9 +199,20 @@ Singleton {
     }
 
     function disconnectDev(dev) { run(["device", "disconnect", dev]) }
-    function disconnect() { if (wifiDevice !== "") run(["device", "disconnect", wifiDevice]) }
+    function disconnect() {
+        // Prefer connection name (more reliable), fallback to device name
+        if (connected !== "") run(["connection", "down", "id", connected])
+        else if (wifiDevice !== "") run(["device", "disconnect", wifiDevice])
+    }
     function forget(ssid) { run(["connection", "delete", "id", ssid]) }
     function setWifi(on) { run(["radio", "wifi", on ? "on" : "off"]) }
+
+    // Watchdog: reset stuck busy state after 65s (nmcli --wait 60 + buffer)
+    Timer {
+        id: busyTimeout
+        interval: 65000
+        onTriggered: { root.busy = false; root.message = "Connection timed out" }
+    }
 
     Timer { interval: root.active ? 5000 : 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
