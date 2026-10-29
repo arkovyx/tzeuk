@@ -48,6 +48,7 @@ PanelWindow {
         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
         Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
 
+        // Glassmorphism background
         Rectangle {
             anchors.fill: parent
             color: Theme.bg
@@ -61,7 +62,7 @@ PanelWindow {
             anchors.fill: parent
             spacing: 0
 
-            // Sidebar
+            // --- Sidebar ---
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 80
@@ -74,12 +75,12 @@ PanelWindow {
 
                     Repeater {
                         model: [
-                            { id: "home", icon: "󰋜", label: "Home" },
+                            { id: "home",  icon: "󰋜",           label: "Home" },
                             { id: "audio", icon: Theme.iVolHigh, label: "Audio" },
-                            { id: "net", icon: Theme.iWifiHigh, label: "Net" },
-                            { id: "bt", icon: "󰂯", label: "BT" },
-                            { id: "sys", icon: "󰍛", label: "Sys" },
-                            { id: "notif", icon: Theme.iBell, label: "Notifs" }
+                            { id: "net",   icon: Theme.iWifiHigh, label: "Net" },
+                            { id: "bt",    icon: "󰂯",           label: "BT" },
+                            { id: "sys",   icon: "󰍛",           label: "Sys" },
+                            { id: "notif", icon: Theme.iBell,    label: "Notifs" }
                         ]
                         delegate: Item {
                             required property var modelData
@@ -128,7 +129,7 @@ PanelWindow {
                 }
             }
 
-            // Content Area
+            // --- Content ---
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -136,23 +137,20 @@ PanelWindow {
                 Loader {
                     anchors.fill: parent
                     source: {
-                        if (win.activeTab === "home") return "HomePage.qml"
+                        if (win.activeTab === "home")  return "HomePage.qml"
                         if (win.activeTab === "audio") return "AudioPage.qml"
-                        if (win.activeTab === "net") return "NetPage.qml"
-                        if (win.activeTab === "sys") return "SysPage.qml"
+                        if (win.activeTab === "net")   return "NetPage.qml"
+                        if (win.activeTab === "bt")    return "BtPage.qml"
+                        if (win.activeTab === "sys")   return "SysPage.qml"
+                        if (win.activeTab === "notif") return "NotifPage.qml"
                         return ""
                     }
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    visible: win.activeTab !== "sys" && win.activeTab !== "home" && win.activeTab !== "audio" && win.activeTab !== "net"
-                    text: win.activeTab === "home" ? "Home Tab (Coming Soon)"
-                        : win.activeTab === "audio" ? "Audio Tab (Coming Soon)"
-                        : win.activeTab === "net" ? "WiFi Tab (Coming Soon)"
-                        : win.activeTab === "bt" ? "Bluetooth Tab (Coming Soon)"
-                        : win.activeTab === "notif" ? "Notifications Tab (Coming Soon)"
-                        : ""
+                    visible: ["home","audio","net","bt","sys","notif"].indexOf(win.activeTab) < 0
+                    text: "Coming Soon"
                     color: Theme.dim
                     font.family: Theme.font
                     font.pixelSize: 16
