@@ -7,20 +7,55 @@ import Quickshell.Bluetooth
 Item {
     id: page
 
-    // Helper to format seconds to m:ss
-    function fmtTime(s) {
-        if (!s || s <= 0) return "0:00"
-        var m = Math.floor(s / 60)
-        var r = Math.floor(s % 60)
-        return m + ":" + (r < 10 ? "0" : "") + r
+    readonly property var player: MediaPlayer.player
+    readonly property real trackLength: player && player.length > 0 ? player.length : 0
+
+    // Local position tracking to avoid buggy MPRIS players
+    property real localPos: 0
+
+    function syncPosition() {
+        if (!player) return
+        // Only sync if the player reports a valid position within the track bounds
+        if (trackLength > 0 && player.position >= 0 && player.position <= trackLength) {
+            page.localPos = player.position
+        }
     }
 
-    // Timer to poke MPRIS for position updates
+    Connections {
+        target: page.player
+        function onTrackTitleChanged() {
+            page.localPos = page.player ? page.player.position : 0
+            page.syncPosition()
+        }
+        function onPlaybackStateChanged() {
+            page.syncPosition()
+        }
+        function onPositionChanged() {
+            page.syncPosition()
+        }
+    }
+
+    // Fallback timer: increments locally so the bar moves smoothly even if the player is silent
     Timer {
-        running: MediaPlayer.hasMedia && MediaPlayer.player && MediaPlayer.player.isPlaying
-        interval: 500
+        running: MediaPlayer.hasMedia && page.player && page.player.isPlaying
+        interval: 1000
         repeat: true
-        onTriggered: if (MediaPlayer.player) MediaPlayer.player.positionChanged()
+        onTriggered: {
+            if (page.player && page.player.isPlaying && page.trackLength > 0) {
+                // Only increment if we aren't already at the end
+                if (page.localPos < page.trackLength) {
+                    page.localPos = Math.min(page.localPos + 1, page.trackLength)
+                }
+            }
+        }
+    }
+
+    function fmtTime(s) {
+        if (!s || s <= 0) return "0:00"
+        s = Math.floor(s)
+        var m = Math.floor(s / 60)
+        var r = s % 60
+        return m + ":" + (r < 10 ? "0" : "") + r
     }
 
     Flickable {
@@ -82,45 +117,11 @@ Item {
 
             // --- Media Player ---
             Rectangle {
-                id: mediaCard
                 Layout.fillWidth: true
                 implicitHeight: visible ? 95 : 0
                 visible: MediaPlayer.hasMedia
                 color: Theme.surfaceHi
                 radius: 12
-
-                readonly property var p: MediaPlayer.player
-
-                // Robust duration reading (MPD's `length` is often 0)
-                readonly property real duration: {
-                    if (!p) return 0
-                    // Try the direct property first
-                    var l = p.length
-                    if (l && l > 0 && l < 86400 * 7) return l
-                    // Fallback to metadata (microseconds per MPRIS spec)
-                    var meta = p.metadata || {}
-                    var raw = meta["mpris:length"]
-                    if (raw) {
-                        var ml = Number(raw)
-                        if (ml > 0) return ml > 10000 ? ml / 1000000 : ml
-                    }
-                    return 0
-                }
-
-                // Robust position reading
-                readonly property real position: {
-                    if (!p) return 0
-                    var pos = p.position || 0
-                    // If position exceeds duration and dividing by 1e6 fits, it's microseconds
-                    if (duration > 0 && pos > duration && (pos / 1000000) <= duration) {
-                        return pos / 1000000
-                    }
-                    return pos
-                }
-
-                readonly property real progress: duration > 0
-                    ? Math.min(1.0, Math.max(0.0, position / duration))
-                    : 0
 
                 RowLayout {
                     anchors.fill: parent
@@ -136,7 +137,7 @@ Item {
 
                         Image {
                             anchors.fill: parent
-                            source: mediaCard.p ? mediaCard.p.trackArtUrl : ""
+                            source: page.player ? page.player.trackArtUrl : ""
                             fillMode: Image.PreserveAspectCrop
                             visible: status === Image.Ready
                             asynchronous: true
@@ -161,7 +162,7 @@ Item {
                             spacing: 0
                             Text {
                                 Layout.fillWidth: true
-                                text: mediaCard.p ? (mediaCard.p.trackTitle || "Unknown") : ""
+                                text: page.player ? (page.player.trackTitle || "Unknown") : ""
                                 color: Theme.fg
                                 font.family: Theme.font
                                 font.pixelSize: 13
@@ -170,7 +171,7 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: mediaCard.p ? (mediaCard.p.trackArtist || "Unknown Artist") : ""
+                                text: page.player ? (page.player.trackArtist || "Unknown Artist") : ""
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 11
@@ -182,12 +183,14 @@ Item {
                         Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 12
-                            visible: mediaCard.duration > 0
+                            visible: page.trackLength > 0
+
+                            readonly property real progress: (page.trackLength > 0) ? Math.min(1, page.localPos / page.trackLength) : 0
 
                             Text {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: page.fmtTime(mediaCard.position)
+                                text: page.fmtTime(page.localPos)
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 9
@@ -196,7 +199,7 @@ Item {
                             Text {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: page.fmtTime(mediaCard.duration)
+                                text: page.fmtTime(page.trackLength)
                                 color: Theme.dim
                                 font.family: Theme.font
                                 font.pixelSize: 9
@@ -213,7 +216,7 @@ Item {
                                 color: Theme.surface
 
                                 Rectangle {
-                                    width: parent.width * mediaCard.progress
+                                    width: parent.width * Math.max(0, Math.min(1, parent.parent.progress))
                                     height: parent.height
                                     radius: 2
                                     color: Theme.accent
@@ -230,9 +233,13 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
 
                                 function seek(mx) {
-                                    if (mediaCard.p && mediaCard.p.canSeek && mediaCard.duration > 0) {
+                                    if (page.player && page.trackLength > 0) {
                                         var ratio = Math.max(0, Math.min(1, mx / width))
-                                        mediaCard.p.position = ratio * mediaCard.duration
+                                        var newPos = ratio * page.trackLength
+                                        page.localPos = newPos
+                                        if (page.player.canSeek) {
+                                            page.player.position = newPos
+                                        }
                                     }
                                 }
                                 onPressed: (mouse) => seek(mouse.x)
@@ -246,45 +253,19 @@ Item {
                                 width: 24; height: 24; radius: 12
                                 color: m1.containsMouse ? Theme.surfaceHi : "transparent"
                                 Text { anchors.centerIn: parent; text: "󰒮"; color: Theme.fg; font.family: Theme.font }
-                                MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canGoPrevious) mediaCard.p.previous() }
+                                MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; onClicked: if(page.player?.canGoPrevious) page.player.previous() }
                             }
                             Rectangle {
                                 width: 24; height: 24; radius: 12
                                 color: m2.containsMouse ? Theme.surfaceHi : "transparent"
-                                Text { anchors.centerIn: parent; text: mediaCard.p?.isPlaying ? "󰏤" : "󰐊"; color: Theme.accent; font.family: Theme.font }
-                                MouseArea { id: m2; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canTogglePlaying) mediaCard.p.togglePlaying() }
+                                Text { anchors.centerIn: parent; text: page.player?.isPlaying ? "󰏤" : "󰐊"; color: Theme.accent; font.family: Theme.font }
+                                MouseArea { id: m2; anchors.fill: parent; hoverEnabled: true; onClicked: if(page.player?.canTogglePlaying) page.player.togglePlaying() }
                             }
                             Rectangle {
                                 width: 24; height: 24; radius: 12
                                 color: m3.containsMouse ? Theme.surfaceHi : "transparent"
                                 Text { anchors.centerIn: parent; text: "󰒭"; color: Theme.fg; font.family: Theme.font }
-                                MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; onClicked: if(mediaCard.p?.canGoNext) mediaCard.p.next() }
-                            }
-                        }
-                    }
-                }
-            }
-
-                        // Controls
-                        RowLayout {
-                            spacing: 8
-                            Rectangle {
-                                width: 24; height: 24; radius: 12
-                                color: m1.containsMouse ? Theme.surfaceHi : "transparent"
-                                Text { anchors.centerIn: parent; text: "󰒮"; color: Theme.fg; font.family: Theme.font }
-                                MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; onClicked: if(MediaPlayer.player?.canGoPrevious) MediaPlayer.player.previous() }
-                            }
-                            Rectangle {
-                                width: 24; height: 24; radius: 12
-                                color: m2.containsMouse ? Theme.surfaceHi : "transparent"
-                                Text { anchors.centerIn: parent; text: MediaPlayer.player?.isPlaying ? "󰏤" : "󰐊"; color: Theme.accent; font.family: Theme.font }
-                                MouseArea { id: m2; anchors.fill: parent; hoverEnabled: true; onClicked: if(MediaPlayer.player?.canTogglePlaying) MediaPlayer.player.togglePlaying() }
-                            }
-                            Rectangle {
-                                width: 24; height: 24; radius: 12
-                                color: m3.containsMouse ? Theme.surfaceHi : "transparent"
-                                Text { anchors.centerIn: parent; text: "󰒭"; color: Theme.fg; font.family: Theme.font }
-                                MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; onClicked: if(MediaPlayer.player?.canGoNext) MediaPlayer.player.next() }
+                                MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; onClicked: if(page.player?.canGoNext) page.player.next() }
                             }
                         }
                     }
