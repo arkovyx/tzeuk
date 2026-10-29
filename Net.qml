@@ -60,10 +60,12 @@ Singleton {
             portalSeen = ""
         }
     }
+
     function probe(manual) {
         if (manual) probeManual = true
         if (!probeProc.running) probeProc.running = true
     }
+
     function gotProbe(text) {
         var m = /^(\d+) ?(.*)$/.exec(text.trim()), code = m ? m[1] : "000", url = m ? m[2] : ""
         var manual = probeManual
@@ -86,9 +88,11 @@ Singleton {
         openPortal()
         Quickshell.execDetached(["notify-send", "-a", "tzeuk", "sign in to " + (portalNet !== "" ? portalNet : "network")])
     }
+
     function openPortal() {
         Quickshell.execDetached(["sh", "-c", 'exec ${BROWSER:-xdg-open} "$1"', "sh", portalUrl !== "" ? portalUrl : probeUrl])
     }
+
     function signIn() {
         if (portal && portalUrl !== "") openPortal()
         else probe(true)
@@ -142,8 +146,13 @@ Singleton {
     }
 
     function refresh() {
-        radioProc.running = true; devProc.running = true; savedProc.running = true; listProc.running = true; connProc.running = true
+        radioProc.running = true
+        devProc.running = true
+        savedProc.running = true
+        listProc.running = true
+        connProc.running = true
     }
+
     function rescan() {
         scanning = true
         rescanProc.running = true
@@ -174,7 +183,7 @@ Singleton {
             checkNow()
         }
         lastWasNew = false
-        refresh()
+        refreshTimer.restart()
     }
 
     function connectTo(entry) {
@@ -199,11 +208,18 @@ Singleton {
     }
 
     function disconnectDev(dev) { run(["device", "disconnect", dev]) }
+
     function disconnect() {
-        // Prefer connection name (more reliable), fallback to device name
-        if (connected !== "") run(["connection", "down", "id", connected])
-        else if (wifiDevice !== "") run(["device", "disconnect", wifiDevice])
+        if (busy) { message = "wait for current operation…"; return }
+        if (wifiDevice !== "") {
+            run(["device", "disconnect", wifiDevice])
+            return
+        }
+        // Fallback: discover the wifi device name on the fly
+        message = "detecting wifi device…"
+        lookupDeviceProc.running = true
     }
+
     function forget(ssid) { run(["connection", "delete", "id", ssid]) }
     function setWifi(on) { run(["radio", "wifi", on ? "on" : "off"]) }
 
@@ -212,6 +228,13 @@ Singleton {
         id: busyTimeout
         interval: 65000
         onTriggered: { root.busy = false; root.message = "Connection timed out" }
+    }
+
+    // Short delay to let NetworkManager settle before querying state again
+    Timer {
+        id: refreshTimer
+        interval: 800
+        onTriggered: root.refresh()
     }
 
     Timer { interval: root.active ? 5000 : 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
@@ -223,6 +246,7 @@ Singleton {
         stdout: SplitParser { onRead: line => { var m = /Connectivity is now '(\w+)'/.exec(line); if (m) root.gotConnectivity(m[1]) } }
         onExited: monitorRestart.start()
     }
+
     Timer { id: monitorRestart; interval: 5000; onTriggered: monitorProc.running = true }
     Timer { interval: 5000; running: root.portal; repeat: true; onTriggered: root.checkNow() }
 
@@ -236,8 +260,18 @@ Singleton {
         command: ["nmcli", "device", "wifi", "rescan"]
         onExited: { root.scanning = false; listProc.running = true }
     }
-    Process { id: radioProc; command: ["nmcli", "radio", "wifi"]; stdout: StdioCollector { onStreamFinished: root.wifiEnabled = text.trim() === "enabled" } }
-    Process { id: devProc; command: ["nmcli", "-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS", "device", "show"]; stdout: StdioCollector { onStreamFinished: root.parseShow(text) } }
+
+    Process {
+        id: radioProc
+        command: ["nmcli", "radio", "wifi"];
+        stdout: StdioCollector { onStreamFinished: root.wifiEnabled = text.trim() === "enabled" }
+    }
+
+    Process {
+        id: devProc
+        command: ["nmcli", "-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS", "device", "show"];
+        stdout: StdioCollector { onStreamFinished: root.parseShow(text) }
+    }
 
     Process {
         id: savedProc
@@ -270,6 +304,26 @@ Singleton {
                 var out = []
                 for (var k in best) out.push(best[k])
                 root.raw = out
+            }
+        }
+    }
+
+    Process {
+        id: lookupDeviceProc
+        command: ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = text.split("\n")
+                for (var i = 0; i < lines.length; i++) {
+                    var f = lines[i].split(":")
+                    if (f.length >= 2 && f[1] === "wifi") {
+                        root.wifiDevice = f[0]
+                        root.message = ""
+                        root.run(["device", "disconnect", f[0]])
+                        return
+                    }
+                }
+                root.message = "No wifi device found"
             }
         }
     }
