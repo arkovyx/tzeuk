@@ -137,6 +137,7 @@ PanelWindow {
                     anchors.fill: parent
                     source: {
                         if (win.activeTab === "home") return "HomePage.qml"
+                        if (win.activeTab === "audio") return "AudioPage.qml"
                         if (win.activeTab === "sys") return "SysPage.qml"
                         return ""
                     }
@@ -144,7 +145,7 @@ PanelWindow {
 
                 Text {
                     anchors.centerIn: parent
-                    visible: win.activeTab !== "sys" && win.activeTab !== "home"
+                    visible: win.activeTab !== "sys" && win.activeTab !== "home" && win.activeTab !== "audio"
                     text: win.activeTab === "home" ? "Home Tab (Coming Soon)"
                         : win.activeTab === "audio" ? "Audio Tab (Coming Soon)"
                         : win.activeTab === "net" ? "WiFi Tab (Coming Soon)"
