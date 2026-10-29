@@ -20,8 +20,8 @@ Singleton {
 
     property string lastSsid: ""
     property bool lastWasNew: false
+    property bool expectDisconnect: false
 
-    // Backward-compat alias
     readonly property int signal: activeSignal
     readonly property var networks: build(raw, savedNames)
     readonly property int activeSignal: {
@@ -184,6 +184,10 @@ Singleton {
         }
         lastWasNew = false
         refreshTimer.restart()
+        if (expectDisconnect) {
+            expectDisconnect = false
+            verifyDisconnectTimer.restart()
+        }
     }
 
     function connectTo(entry) {
@@ -211,30 +215,43 @@ Singleton {
 
     function disconnect() {
         if (busy) { message = "wait for current operation…"; return }
-        if (wifiDevice !== "") {
-            run(["device", "disconnect", wifiDevice])
+        if (wifiDevice === "") {
+            message = "detecting wifi device…"
+            lookupDeviceProc.running = true
+            expectDisconnect = true
             return
         }
-        // Fallback: discover the wifi device name on the fly
-        message = "detecting wifi device…"
-        lookupDeviceProc.running = true
+        busy = true
+        busyTimeout.restart()
+        message = ""
+        expectDisconnect = true
+        // 1) Take down the active WiFi profile by name
+        // 2) Also disconnect the device (belt + suspenders)
+        // 3) Always exit 0 — NM may try to auto-connect other saved profiles (e.g. stale enp1s0)
+        //    and fail; that error is unrelated to our disconnect and shouldn't scare the user
+        runProc.command = ["sh", "-c",
+            'DEV="$1"; ' +
+            'PROFILE=$(nmcli -t -f NAME,TYPE,ACTIVE connection show 2>/dev/null | awk -F: \'$2 ~ /wireless/ && $NF == "yes" {print $1; exit}\'); ' +
+            'if [ -n "$PROFILE" ]; then nmcli connection down "$PROFILE" >/dev/null 2>&1; fi; ' +
+            'if [ -n "$DEV" ]; then nmcli device disconnect "$DEV" >/dev/null 2>&1; fi; ' +
+            'exit 0',
+            "sh", wifiDevice]
+        runProc.running = true
     }
 
     function forget(ssid) { run(["connection", "delete", "id", ssid]) }
     function setWifi(on) { run(["radio", "wifi", on ? "on" : "off"]) }
 
-    // Watchdog: reset stuck busy state after 65s (nmcli --wait 60 + buffer)
+    Timer { id: busyTimeout; interval: 65000; onTriggered: { root.busy = false; root.message = "Connection timed out"; root.expectDisconnect = false } }
+    Timer { id: refreshTimer; interval: 800; onTriggered: root.refresh() }
     Timer {
-        id: busyTimeout
-        interval: 65000
-        onTriggered: { root.busy = false; root.message = "Connection timed out" }
-    }
-
-    // Short delay to let NetworkManager settle before querying state again
-    Timer {
-        id: refreshTimer
-        interval: 800
-        onTriggered: root.refresh()
+        id: verifyDisconnectTimer
+        interval: 1600
+        onTriggered: {
+            if (root.connected !== "" && !root.busy) {
+                root.message = "Disconnect didn't take effect. Try Wi-Fi off/on."
+            }
+        }
     }
 
     Timer { interval: root.active ? 5000 : 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
@@ -319,11 +336,12 @@ Singleton {
                     if (f.length >= 2 && f[1] === "wifi") {
                         root.wifiDevice = f[0]
                         root.message = ""
-                        root.run(["device", "disconnect", f[0]])
+                        root.disconnect()
                         return
                     }
                 }
                 root.message = "No wifi device found"
+                root.expectDisconnect = false
             }
         }
     }
