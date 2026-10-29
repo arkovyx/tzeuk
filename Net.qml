@@ -20,17 +20,43 @@ Singleton {
 
     property string lastSsid: ""
     property bool lastWasNew: false
-    property bool expectDisconnect: false
+
+    // AUTHORITATIVE connected state, from `nmcli device status`
+    property string connected: ""
 
     readonly property int signal: activeSignal
-    readonly property var networks: build(raw, savedNames)
     readonly property int activeSignal: {
-        for (var i = 0; i < raw.length; i++) if (raw[i].inUse) return raw[i].signal
+        for (var i = 0; i < raw.length; i++)
+            if (raw[i].ssid === connected) return raw[i].signal
         return 0
     }
-    readonly property string connected: {
-        for (var i = 0; i < raw.length; i++) if (raw[i].inUse) return raw[i].ssid
-        return ""
+
+    readonly property var networks: {
+        var out = []
+        var hasMatch = false
+        if (connected !== "") {
+            for (var k = 0; k < raw.length; k++)
+                if (raw[k].ssid === connected) { hasMatch = true; break }
+        }
+        for (var i = 0; i < raw.length; i++) {
+            var n = raw[i]
+            var inUse
+            if (connected === "") inUse = false
+            else if (hasMatch) inUse = n.ssid === connected
+            else inUse = n.inUse
+            out.push({
+                ssid: n.ssid,
+                signal: n.signal,
+                security: n.security,
+                inUse: inUse,
+                saved: savedNames.indexOf(n.ssid) >= 0
+            })
+        }
+        out.sort(function (a, b) {
+            if (a.inUse !== b.inUse) return a.inUse ? -1 : 1
+            return b.signal - a.signal
+        })
+        return out
     }
 
     // --- Captive Portal ---
@@ -127,7 +153,6 @@ Singleton {
         var wired = []
         for (var j = 0; j < devs.length; j++) {
             var d = devs[j]
-            if (d.type === "wifi") wifiDevice = d.dev
             var up = d.state.indexOf("connected") >= 0 && d.state.indexOf("disconnected") < 0
             if (d.type === "ethernet" && up)
                 wired.push({ dev: d.dev, name: d.name !== "" ? d.name : d.dev, ip: d.ip, usb: /^usb|^enx|u\d+(c\d+)?(i\d+)?$/.test(d.dev) })
@@ -135,18 +160,9 @@ Singleton {
         wiredDevs = wired
     }
 
-    function build(list, saved) {
-        var out = []
-        for (var i = 0; i < list.length; i++) {
-            var n = list[i]
-            out.push({ ssid: n.ssid, signal: n.signal, security: n.security, inUse: n.inUse, saved: saved.indexOf(n.ssid) >= 0 })
-        }
-        out.sort(function (a, b) { if (a.inUse !== b.inUse) return a.inUse ? -1 : 1; return b.signal - a.signal })
-        return out
-    }
-
     function refresh() {
         radioProc.running = true
+        devStatusProc.running = true
         devProc.running = true
         savedProc.running = true
         listProc.running = true
@@ -184,10 +200,6 @@ Singleton {
         }
         lastWasNew = false
         refreshTimer.restart()
-        if (expectDisconnect) {
-            expectDisconnect = false
-            verifyDisconnectTimer.restart()
-        }
     }
 
     function connectTo(entry) {
@@ -215,26 +227,17 @@ Singleton {
 
     function disconnect() {
         if (busy) { message = "wait for current operation…"; return }
-        if (wifiDevice === "") {
-            message = "detecting wifi device…"
-            lookupDeviceProc.running = true
-            expectDisconnect = true
-            return
-        }
         busy = true
         busyTimeout.restart()
         message = ""
-        expectDisconnect = true
-        // 1) Take down the active WiFi profile by name
-        // 2) Also disconnect the device (belt + suspenders)
-        // 3) Always exit 0 — NM may try to auto-connect other saved profiles (e.g. stale enp1s0)
-        //    and fail; that error is unrelated to our disconnect and shouldn't scare the user
+        // Simple, direct: disconnect the device. State comes from device status, not cached wifi list.
         runProc.command = ["sh", "-c",
             'DEV="$1"; ' +
-            'PROFILE=$(nmcli -t -f NAME,TYPE,ACTIVE connection show 2>/dev/null | awk -F: \'$2 ~ /wireless/ && $NF == "yes" {print $1; exit}\'); ' +
-            'if [ -n "$PROFILE" ]; then nmcli connection down "$PROFILE" >/dev/null 2>&1; fi; ' +
-            'if [ -n "$DEV" ]; then nmcli device disconnect "$DEV" >/dev/null 2>&1; fi; ' +
-            'exit 0',
+            'if [ -z "$DEV" ]; then echo "No wifi device"; exit 1; fi; ' +
+            'nmcli device disconnect "$DEV" 2>&1; ' +
+            'RC=$?; ' +
+            'nmcli device wifi rescan >/dev/null 2>&1; ' +
+            'exit $RC',
             "sh", wifiDevice]
         runProc.running = true
     }
@@ -242,19 +245,34 @@ Singleton {
     function forget(ssid) { run(["connection", "delete", "id", ssid]) }
     function setWifi(on) { run(["radio", "wifi", on ? "on" : "off"]) }
 
-    Timer { id: busyTimeout; interval: 65000; onTriggered: { root.busy = false; root.message = "Connection timed out"; root.expectDisconnect = false } }
-    Timer { id: refreshTimer; interval: 800; onTriggered: root.refresh() }
-    Timer {
-        id: verifyDisconnectTimer
-        interval: 1600
-        onTriggered: {
-            if (root.connected !== "" && !root.busy) {
-                root.message = "Disconnect didn't take effect. Try Wi-Fi off/on."
+    Timer { id: busyTimeout; interval: 65000; onTriggered: { root.busy = false; root.message = "Connection timed out" } }
+    Timer { id: refreshTimer; interval: 1200; onTriggered: root.refresh() }
+
+    Timer { interval: root.active ? 5000 : 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
+
+    // --- Device status: authoritative for connected state ---
+    Process {
+        id: devStatusProc
+        command: ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device", "status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var lines = text.trim().split("\n")
+                var wifiDev = ""
+                var conn = ""
+                for (var i = 0; i < lines.length; i++) {
+                    var f = root.parseTerse(lines[i])
+                    if (f.length >= 4 && f[1] === "wifi") {
+                        if (wifiDev === "") wifiDev = f[0]
+                        if (f[2] === "connected" && f[3] !== "" && f[3] !== "--") {
+                            conn = f[3]
+                        }
+                    }
+                }
+                root.wifiDevice = wifiDev
+                root.connected = conn
             }
         }
     }
-
-    Timer { interval: root.active ? 5000 : 15000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
     Process {
         id: monitorProc
@@ -280,13 +298,13 @@ Singleton {
 
     Process {
         id: radioProc
-        command: ["nmcli", "radio", "wifi"];
+        command: ["nmcli", "radio", "wifi"]
         stdout: StdioCollector { onStreamFinished: root.wifiEnabled = text.trim() === "enabled" }
     }
 
     Process {
         id: devProc
-        command: ["nmcli", "-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS", "device", "show"];
+        command: ["nmcli", "-t", "-f", "GENERAL.DEVICE,GENERAL.TYPE,GENERAL.STATE,GENERAL.CONNECTION,IP4.ADDRESS", "device", "show"]
         stdout: StdioCollector { onStreamFinished: root.parseShow(text) }
     }
 
@@ -321,27 +339,6 @@ Singleton {
                 var out = []
                 for (var k in best) out.push(best[k])
                 root.raw = out
-            }
-        }
-    }
-
-    Process {
-        id: lookupDeviceProc
-        command: ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = text.split("\n")
-                for (var i = 0; i < lines.length; i++) {
-                    var f = lines[i].split(":")
-                    if (f.length >= 2 && f[1] === "wifi") {
-                        root.wifiDevice = f[0]
-                        root.message = ""
-                        root.disconnect()
-                        return
-                    }
-                }
-                root.message = "No wifi device found"
-                root.expectDisconnect = false
             }
         }
     }
