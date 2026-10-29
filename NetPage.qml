@@ -3,8 +3,6 @@ import QtQuick.Layouts
 
 Item {
     id: page
-
-    // Tell the backend we are active (faster polling)
     Component.onCompleted: Net.active = true
     Component.onDestruction: Net.active = false
 
@@ -24,32 +22,18 @@ Item {
             // --- Header ---
             RowLayout {
                 Layout.fillWidth: true
-
-                Text {
-                    text: "NETWORK"
-                    color: Theme.accent
-                    font.family: Theme.font
-                    font.pixelSize: 16
-                    font.bold: true
-                    font.letterSpacing: 3
-                }
-
+                Text { text: "NETWORK"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 16; font.bold: true; font.letterSpacing: 3 }
                 Item { Layout.fillWidth: true }
-
-                // Refresh Button
                 Rectangle {
                     width: 28; height: 28; radius: 14
                     color: m1.containsMouse ? Theme.surfaceHi : "transparent"
                     Text { anchors.centerIn: parent; text: "󰑐"; color: Net.scanning ? Theme.accent : Theme.fg; font.family: Theme.font }
                     MouseArea { id: m1; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Net.rescan() }
                 }
-
-                // WiFi Toggle
                 Rectangle {
                     width: 44; height: 24; radius: 12
                     color: Net.wifiEnabled ? Theme.accent : Theme.surfaceHi
                     Behavior on color { ColorAnimation { duration: 150 } }
-
                     Rectangle {
                         width: 18; height: 18; radius: 9
                         y: 3
@@ -57,13 +41,23 @@ Item {
                         color: Net.wifiEnabled ? Theme.bg : Theme.fg
                         Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutQuint } }
                     }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Net.setWifi(!Net.wifiEnabled)
-                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.setWifi(!Net.wifiEnabled) }
                 }
+            }
+
+            // --- Status text ---
+            Text {
+                Layout.fillWidth: true
+                text: {
+                    if (!Net.wifiEnabled) return "Wi-Fi is off"
+                    if (Net.busy) return "Connecting to " + Net.lastSsid + "…"
+                    if (Net.connected !== "") return "Connected to " + Net.connected
+                    return "Not connected"
+                }
+                color: Net.busy ? Theme.accent : (Net.connected !== "" ? Theme.accent : Theme.dim)
+                font.family: Theme.font
+                font.pixelSize: 11
+                font.italic: Net.busy
             }
 
             // --- Wired / Tethering ---
@@ -71,9 +65,7 @@ Item {
                 visible: Net.wiredDevs.length > 0
                 Layout.fillWidth: true
                 spacing: 6
-
                 Text { text: "WIRED"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2 }
-
                 Repeater {
                     model: Net.wiredDevs
                     delegate: Rectangle {
@@ -84,34 +76,23 @@ Item {
                         color: Theme.surfaceHi
                         border.width: 1
                         border.color: Theme.line
-
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 12
                             spacing: 12
-
-                            Text {
-                                text: modelData.usb ? "󰢹" : "󰈀"
-                                color: Theme.accent
-                                font.family: Theme.font
-                                font.pixelSize: 18
-                            }
-
+                            Text { text: modelData.usb ? "󰢹" : "󰈀"; color: Theme.accent; font.family: Theme.font; font.pixelSize: 18 }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text { text: modelData.name; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: true }
                                 Text { text: modelData.dev + (modelData.ip !== "" ? " · " + modelData.ip : ""); color: Theme.dim; font.family: Theme.font; font.pixelSize: 10 }
                             }
-
                             Rectangle {
                                 visible: Net.portal && Net.portalNet === modelData.name
-                                width: 28; height: 28; radius: 8
-                                color: Theme.accent
+                                width: 28; height: 28; radius: 8; color: Theme.accent
                                 Text { anchors.centerIn: parent; text: "󰍃"; color: Theme.bg; font.family: Theme.font }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.openPortal() }
                             }
-
                             Rectangle {
                                 width: 28; height: 28; radius: 8
                                 color: m2.containsMouse ? Theme.err : "transparent"
@@ -123,7 +104,7 @@ Item {
                 }
             }
 
-            // Error / Message
+            // Error message
             Text {
                 Layout.fillWidth: true
                 visible: Net.message !== ""
@@ -169,6 +150,15 @@ Item {
                             border.width: modelData.inUse ? 1 : 0
                             border.color: Theme.accent
 
+                            // ⚠️ rowHover is declared FIRST (behind) so buttons on top can receive clicks
+                            MouseArea {
+                                id: rowHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Net.connectTo(modelData)
+                            }
+
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.margins: 12
@@ -180,25 +170,26 @@ Item {
                                     font.family: Theme.font
                                     font.pixelSize: 18
                                 }
-
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 2
                                     Text { text: modelData.ssid; color: Theme.fg; font.family: Theme.font; font.pixelSize: 13; font.bold: modelData.inUse }
                                     Text {
-                                        text: modelData.inUse ? "Connected" : (modelData.saved ? "Saved" : (modelData.security === "" ? "Open" : modelData.security))
+                                        text: {
+                                            if (modelData.inUse && Net.busy) return "Connecting…"
+                                            if (modelData.inUse) return "Connected"
+                                            if (modelData.saved) return "Saved"
+                                            return modelData.security === "" ? "Open" : modelData.security
+                                        }
                                         color: modelData.inUse ? Theme.accent : Theme.dim
                                         font.family: Theme.font
                                         font.pixelSize: 10
                                     }
                                 }
-
                                 Text { text: modelData.signal + "%"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 11 }
-
-                                // Lock icon
                                 Text { visible: modelData.security !== "" && !modelData.inUse; text: "󰌾"; color: Theme.dim; font.family: Theme.font; font.pixelSize: 12 }
 
-                                // Disconnect Button
+                                // Disconnect button — on top of rowHover
                                 Rectangle {
                                     visible: modelData.inUse
                                     width: 28; height: 28; radius: 8
@@ -207,17 +198,9 @@ Item {
                                     MouseArea { id: m3; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: Net.disconnect() }
                                 }
                             }
-
-                            MouseArea {
-                                id: rowHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Net.connectTo(modelData)
-                            }
                         }
 
-                        // Password Prompt Dropdown
+                        // Password Prompt
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: visible ? 44 : 0
