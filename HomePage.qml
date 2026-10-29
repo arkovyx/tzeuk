@@ -18,7 +18,7 @@ Item {
         ColumnLayout {
             id: col
             width: parent.width
-            spacing: 20
+            spacing: 14 // Compacted from 20
 
             Text {
                 text: "HOME"
@@ -64,76 +64,22 @@ Item {
                 }
             }
 
-            // --- Quick Toggles ---
-            Text {
-                text: "TOGGLES"
-                color: Theme.accent
-                font.family: Theme.font
-                font.pixelSize: 11
-                font.bold: true
-                font.letterSpacing: 2
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-
-                // WiFi
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 36; radius: 10
-                    color: Net.wifiEnabled ? Theme.accent : Theme.surfaceHi
-                    Text { anchors.centerIn: parent; text: Theme.iWifiHigh; color: Net.wifiEnabled ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.setWifi(!Net.wifiEnabled) }
-                }
-
-                // BT
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 36; radius: 10
-                    readonly property var ad: Bluetooth.defaultAdapter
-                    color: (ad && ad.enabled) ? Theme.accent : Theme.surfaceHi
-                    Text { anchors.centerIn: parent; text: "󰂯"; color: (parent.ad && parent.ad.enabled) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.ad) parent.ad.enabled = !parent.ad.enabled }
-                }
-
-                // DND
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 36; radius: 10
-                    color: Notifs.dnd ? Theme.accent : Theme.surfaceHi
-                    Text { anchors.centerIn: parent; text: Notifs.dnd ? Theme.iBellOff : Theme.iBell; color: Notifs.dnd ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Notifs.dnd = !Notifs.dnd }
-                }
-
-                // Mic
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 36; radius: 10
-                    readonly property var mic: Pipewire.defaultAudioSource ? Pipewire.defaultAudioSource.audio : null
-                    color: (mic && !mic.muted) ? Theme.accent : Theme.surfaceHi
-                    Text { anchors.centerIn: parent; text: (parent.mic && !parent.mic.muted) ? "󰍬" : "󰍭"; color: (parent.mic && !parent.mic.muted) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.mic) parent.mic.muted = !parent.mic.muted }
-                }
-            }
-
             // --- Media Player ---
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: visible ? 90 : 0
+                implicitHeight: visible ? 80 : 0 // Compacted from 90
                 visible: MediaPlayer.hasMedia
                 color: Theme.surfaceHi
                 radius: 12
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: 10
                     spacing: 12
 
-                    // Album Art
                     Rectangle {
-                        Layout.preferredWidth: 64
-                        Layout.preferredHeight: 64
+                        Layout.preferredWidth: 60
+                        Layout.preferredHeight: 60
                         radius: 8
                         color: Theme.bg
 
@@ -154,10 +100,9 @@ Item {
                         }
                     }
 
-                    // Track Info & Controls
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: 2
 
                         Text {
                             Layout.fillWidth: true
@@ -202,6 +147,59 @@ Item {
                 }
             }
 
+            // --- Quick Toggles ---
+            Text {
+                text: "TOGGLES"
+                color: Theme.accent
+                font.family: Theme.font
+                font.pixelSize: 11
+                font.bold: true
+                font.letterSpacing: 2
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 32
+                    radius: 8
+                    color: Net.wifiEnabled ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: Theme.iWifiHigh; color: Net.wifiEnabled ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Net.setWifi(!Net.wifiEnabled) }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 32
+                    radius: 8
+                    readonly property var ad: Bluetooth.defaultAdapter
+                    color: (ad && ad.enabled) ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: "󰂯"; color: (parent.ad && parent.ad.enabled) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.ad) parent.ad.enabled = !parent.ad.enabled }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 32
+                    radius: 8
+                    color: Notifs.dnd ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: Notifs.dnd ? Theme.iBellOff : Theme.iBell; color: Notifs.dnd ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Notifs.dnd = !Notifs.dnd }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 32
+                    radius: 8
+                    readonly property var mic: Pipewire.defaultAudioSource ? Pipewire.defaultAudioSource.audio : null
+                    color: (mic && !mic.muted) ? Theme.accent : Theme.surfaceHi
+                    Text { anchors.centerIn: parent; text: (parent.mic && !parent.mic.muted) ? "󰍬" : "󰍭"; color: (parent.mic && !parent.mic.muted) ? Theme.bg : Theme.fg; font.family: Theme.font; font.pixelSize: 16 }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (parent.mic) parent.mic.muted = !parent.mic.muted }
+                }
+            }
+
             // --- Power ---
             Text {
                 text: "POWER"
@@ -227,7 +225,8 @@ Item {
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
-                        height: 36; radius: 10
+                        height: 32
+                        radius: 8
                         color: mouse.containsMouse ? Theme.err : Theme.surfaceHi
                         Behavior on color { ColorAnimation { duration: 150 } }
                         Text {
@@ -251,17 +250,17 @@ Item {
             // --- Circular Audio Visualizer ---
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(col.width - 20, 260)
-                Layout.topMargin: 4
+                Layout.preferredHeight: Math.min(col.width - 20, 210) // Reduced height
+                Layout.topMargin: 0
 
                 Visualizer {
                     anchors.centerIn: parent
-                    diameter: Math.min(parent.width - 20, 240)
+                    diameter: Math.min(parent.width - 20, 200) // Reduced diameter
                 }
             }
 
-            // Bottom padding
-            Item { Layout.preferredHeight: 8 }
+            // Small fixed spacer at the bottom
+            Item { Layout.preferredHeight: 10 }
         }
     }
 }
