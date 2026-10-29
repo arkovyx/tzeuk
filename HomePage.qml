@@ -248,7 +248,20 @@ Item {
                 }
             }
 
-            Item { Layout.fillHeight: true }
+            // --- Circular Audio Visualizer ---
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(col.width - 20, 260)
+                Layout.topMargin: 4
+
+                Visualizer {
+                    anchors.centerIn: parent
+                    diameter: Math.min(parent.width - 20, 240)
+                }
+            }
+
+            // Bottom padding
+            Item { Layout.preferredHeight: 8 }
         }
     }
 }
