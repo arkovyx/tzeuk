@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
-import Quickshell.Io
 
 PanelWindow {
     id: bar
@@ -79,7 +78,7 @@ PanelWindow {
         anchors.leftMargin: 12
         anchors.rightMargin: 12
 
-        // ---------- Workspaces (20 persistent) ----------
+        // ---------- Workspaces (10 per monitor, block-based) ----------
         Row {
             id: wsRow
             anchors.left: parent.left
@@ -87,10 +86,17 @@ PanelWindow {
             spacing: 3
 
             readonly property var activeWs: bar.hmon ? bar.hmon.activeWorkspace : null
-            readonly property var list: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+
+            // Block of 10 based on this monitor's active workspace
+            // Monitor 1's active ws in 1-10  → offset 0  → shows 1-10
+            // Monitor 2's active ws in 11-20 → offset 10 → shows 11-20
+            readonly property int offset: (activeWs && activeWs.id > 0)
+                ? Math.floor((activeWs.id - 1) / 10) * 10
+                : 0
+            readonly property var list: [1,2,3,4,5,6,7,8,9,10].map(function(i) { return offset + i })
 
             readonly property var icons: [
-                "󰈹", "", "󰂺", "󰒓", "󰍩",
+                "󰈹", "󰅩", "󰂺", "󰒓", "󰍩",
                 "󰈙", "󰉋", "󰆍", "󰂕", "󰋩"
             ]
 
@@ -105,11 +111,14 @@ PanelWindow {
                 Hyprland.dispatch('hl.dsp.focus({ workspace = "' + id + '" })')
             }
 
+            // Scroll within this monitor's own block of 10
             function step(dir) {
-                var cur = activeWs ? activeWs.id : 1
+                var cur = activeWs ? activeWs.id : (offset + 1)
+                var blockStart = offset + 1
+                var blockEnd = offset + 10
                 var next = cur + dir
-                if (next < 1) next = 20
-                if (next > 20) next = 1
+                if (next < blockStart) next = blockEnd
+                if (next > blockEnd) next = blockStart
                 switchTo(next)
             }
 
@@ -168,19 +177,6 @@ PanelWindow {
             }
 
             BarPill {
-                icon: Theme.iCal
-                text: Qt.formatDateTime(clock.date, "dd MMM")
-                onClicked: bar.togglePanel("cal", bar.modelData)
-            }
-
-            BarPill {
-                icon: Theme.iClock
-                text: Qt.formatDateTime(clock.date, "HH:mm")
-                onClicked: {}
-            }
-
-            // WiFi
-            BarPill {
                 icon: !Net.wifiEnabled ? Theme.iWifiOff
                       : (Net.connected !== "" ? Theme.wifiIcon(Net.activeSignal) : Theme.iWifiOff)
                 tint: Net.wifiEnabled && Net.connected !== "" ? Theme.fg : Theme.dim
@@ -192,6 +188,18 @@ PanelWindow {
                 text: Notifs.count > 0 ? String(Notifs.count) : ""
                 tint: Notifs.dnd ? Theme.dim : Theme.fg
                 onClicked: bar.togglePanel("notif", bar.modelData)
+            }
+
+            BarPill {
+                icon: Theme.iCal
+                text: Qt.formatDateTime(clock.date, "dd MMM")
+                onClicked: bar.togglePanel("cal", bar.modelData)
+            }
+
+            BarPill {
+                icon: Theme.iClock
+                text: Qt.formatDateTime(clock.date, "HH:mm")
+                onClicked: {}
             }
         }
     }
