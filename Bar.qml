@@ -78,7 +78,7 @@ PanelWindow {
         anchors.leftMargin: 12
         anchors.rightMargin: 12
 
-        // ---------- Workspaces (10 per monitor, block-based) ----------
+        // ---------- Left: Workspaces (10 per monitor) ----------
         Row {
             id: wsRow
             anchors.left: parent.left
@@ -87,9 +87,6 @@ PanelWindow {
 
             readonly property var activeWs: bar.hmon ? bar.hmon.activeWorkspace : null
 
-            // Block of 10 based on this monitor's active workspace
-            // Monitor 1's active ws in 1-10  → offset 0  → shows 1-10
-            // Monitor 2's active ws in 11-20 → offset 10 → shows 11-20
             readonly property int offset: (activeWs && activeWs.id > 0)
                 ? Math.floor((activeWs.id - 1) / 10) * 10
                 : 0
@@ -97,7 +94,7 @@ PanelWindow {
 
             readonly property var icons: [
                 "󰈹", "", "", "", "󰍩",
-                "󰈙", "󰉋", "󰆍", "󰹑", "󰎆"
+                "󰈙", "󰉋", "󰆍", "󰹑", "󰫔"
             ]
 
             function find(id) {
@@ -111,7 +108,6 @@ PanelWindow {
                 Hyprland.dispatch('hl.dsp.focus({ workspace = "' + id + '" })')
             }
 
-            // Scroll within this monitor's own block of 10
             function step(dir) {
                 var cur = activeWs ? activeWs.id : (offset + 1)
                 var blockStart = offset + 1
@@ -158,6 +154,32 @@ PanelWindow {
                             wsRow.step(w.angleDelta.y > 0 ? -1 : 1)
                         }
                     }
+                }
+            }
+        }
+
+        // ---------- Center: Active Window Title ----------
+        Text {
+            id: windowTitle
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width * 0.35)
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
+
+            readonly property string title: ToplevelManager.activeToplevel ? ToplevelManager.activeToplevel.title : ""
+
+            visible: title !== ""
+            text: title
+            color: Theme.fg
+            opacity: 0.8
+            font.family: Theme.font
+            font.pixelSize: 12
+            font.bold: true
+
+            Behavior on text {
+                SequentialAnimation {
+                    NumberAnimation { target: windowTitle; property: "opacity"; to: 0; duration: 100 }
+                    NumberAnimation { target: windowTitle; property: "opacity"; to: 0.8; duration: 100 }
                 }
             }
         }
