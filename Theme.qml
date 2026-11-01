@@ -2,10 +2,12 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 
 Singleton {
     id: root
     readonly property string font: "JetBrainsMono Nerd Font"
+    readonly property string sans: "JetBrainsMono Nerd Font"
     readonly property string walFile: Quickshell.env("HOME") + "/.cache/wal/colors.json"
 
     FileView {
@@ -31,11 +33,9 @@ Singleton {
     readonly property color surfaceHi: Qt.rgba(fg.r, fg.g, fg.b, 0.1)
     readonly property color line: Qt.rgba(fg.r, fg.g, fg.b, 0.2)
     readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.5)
-    readonly property color err: Qt.rgba(0.9, 0.3, 0.3, 1) // Red for critical states
 
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
 
-    // --- All Icons (Consolidated) ---
     // System / Clock
     readonly property string iClock: cp(0xF0954)
     readonly property string iCal: cp(0xF00ED)
@@ -65,4 +65,45 @@ Singleton {
     function wifiIcon(sig) {
         return sig >= 75 ? iWifiHigh : sig >= 50 ? iWifiMed : sig >= 25 ? iWifiLow : iWifiOff
     }
+
+    // --- Launcher Compatibility Layer ---
+    readonly property color bright: "#ffffff"
+    readonly property color ink: "#000000"
+    readonly property color warn: "#f5a97f"
+    readonly property color live: accent
+    readonly property color mute: dim
+    readonly property color fill: surfaceHi
+    readonly property color fillFg: fg
+
+    readonly property int fast: 150
+    readonly property int move: 250
+    readonly property var settle: [0.25, 1, 0.5, 1]
+    readonly property var leave: [0.5, 0, 0.75, 0]
+
+    function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+    function soft(c) { return Qt.rgba(c.r, c.g, c.b, 0.15) }
+    function ms(v) { return v }
+    function r(v) { return v }
+
+    function along(colors, t) {
+        var n = colors.length - 1
+        var i = Math.floor(t * n)
+        var f = t * n - i
+        if (i >= n) return colors[n]
+        var c1 = Qt.color(colors[i])
+        var c2 = Qt.color(colors[i + 1])
+        return Qt.rgba(c1.r + (c2.r - c1.r) * f, c1.g + (c2.g - c1.g) * f, c1.b + (c2.b - c1.b) * f, 1)
+    }
+
+    function scaleFor(screen) {
+        return screen ? Math.max(1, screen.devicePixelRatio) : 1
+    }
+
+    function focusedScreen() {
+        var m = Hyprland.focusedMonitor
+        var l = Quickshell.screens
+        if (m) for (var i = 0; i < l.length; i++) if (l[i].name === m.name) return l[i]
+        return l.length ? l[0] : null
+    }
 }
+
