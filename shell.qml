@@ -5,12 +5,10 @@ import Quickshell.Services.Pipewire
 ShellRoot {
     id: root
 
-    // Panel State
     property bool panelOpen: false
     property var panelScreen: null
     property string activeTab: "home"
 
-    // Calendar State
     property bool calOpen: false
     property var calScreen: null
 
@@ -23,12 +21,10 @@ ShellRoot {
         Bar {
             onTogglePanel: function(name, scr) {
                 if (name === "cal") {
-                    // Open/Close Calendar
                     root.calScreen = scr
                     root.calOpen = !root.calOpen
-                    root.panelOpen = false // Close main panel if calendar opens
+                    root.panelOpen = false
                 } else {
-                    // Open/Close Main Panel
                     if (root.panelOpen && root.activeTab === name) {
                         root.panelOpen = false
                     } else {
@@ -36,13 +32,12 @@ ShellRoot {
                         root.panelScreen = scr
                         root.panelOpen = true
                     }
-                    root.calOpen = false // Close calendar if panel opens
+                    root.calOpen = false
                 }
             }
         }
     }
 
-    // Main Panel
     Panel {
         opened: root.panelOpen
         activeTab: root.activeTab
@@ -51,18 +46,21 @@ ShellRoot {
         screen: root.panelScreen !== null ? root.panelScreen : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     }
 
-    // Calendar Popup
     CalendarPopup {
         opened: root.calOpen
         onCloseRequested: root.calOpen = false
         screen: root.calScreen !== null ? root.calScreen : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     }
 
-    // Notifications
     Variants {
         model: Quickshell.screens
         NotifPopup {
             suppressed: root.panelOpen && screen === root.panelScreen
         }
+    }
+
+    // --- Load the Launcher ---
+    Launcher {
+        id: launcher
     }
 }
