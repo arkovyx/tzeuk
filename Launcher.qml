@@ -1,26 +1,3 @@
-// ~/.config/quickshell/tzeuk/Launcher.qml
-//
-// Nothing-style launcher for Quickshell. Fuzzel-equivalent behaviour + vim modes.
-//
-// USAGE
-//   From shell : Launcher { }  inside shell.qml
-//   Standalone : qs -p ~/.config/quickshell/tzeuk/Launcher.qml  (set quitOnClose: true)
-//   Toggle     : qs ipc call launcher toggle   (also: open / close)
-//   Icon theme : QS_ICON_THEME=Papirus-Dark qs
-//
-// KEYS
-//   INSERT (default) : type to filter/run, Up/Down/Tab/Ctrl+n/p move, Enter launch,
-//                      Shift+Enter run typed text raw, Esc -> NORMAL
-//   NORMAL           : j/k move, g/G top/bottom, Ctrl+d/u page, Enter launch,
-//                      i -> INSERT, Esc quit
-//
-// BACKEND
-//   loadApps() returns [{ kind, name, sub, icon, haystack, launch() }].
-//   Swap that function (or set useStub) to change the source of entries.
-//
-// FONTS (relative to this file): launcher/fonts/{Doto[ROND,wght].ttf,
-//   SpaceGrotesk-Regular.otf, SpaceGrotesk-Bold.otf, SpaceMono-Regular.ttf}
-
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
@@ -32,7 +9,7 @@ Scope {
     id: root
 
     // ───────────────────────── Config ─────────────────────────
-    property bool shown: true                  // visible on spawn
+    property bool shown: false                  // visible on spawn
     property bool quitOnClose: false           // true when run via `qs -p`
     property bool useStub: false               // true = stubApps instead of .desktop files
     property var terminal: ["foot", "-e"]      // used for Terminal=true apps
