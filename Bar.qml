@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Services.Pipewire
+import Quickshell.Services.UPower
 
 PanelWindow {
     id: bar
@@ -10,97 +11,86 @@ PanelWindow {
     screen: modelData
     signal togglePanel(string name, var scr)
 
+    // Floating Capsule
     anchors { top: true; left: true; right: true }
-    margins { top: 6; left: 12; right: 12 }
-    implicitHeight: 36
+    margins { top: 8; left: 20; right: 20 }
+    implicitHeight: 44
+
     color: "transparent"
-    WlrLayershell.namespace: "tzeuk-bar"
+    WlrLayershell.namespace: "tzeuk-bar-nothing"
+
+    // --- Fonts ---
+    FontLoader { id: fDoto; source: "launcher/fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fMono; source: "launcher/fonts/SpaceMono-Regular.ttf" }
+    FontLoader { id: fGrotesk; source: "launcher/fonts/SpaceGrotesk-Regular.otf" }
+
+    readonly property string fDotStr: fDoto.name !== "" ? fDoto.name : "monospace"
+    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
+    readonly property string fGroteskStr: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+
+    // --- Nothing OS Colors ---
+    readonly property color nBlack: "#000000"
+    readonly property color nWhite: "#ffffff"
+    readonly property color nRed: "#d71921"
+    readonly property color nDim: "#333333"
+    readonly property color nSurface: "#1A1A1A"
 
     readonly property var hmon: Hyprland.monitorFor(modelData)
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
 
-    // ---------- Reusable Pill ----------
-    component BarPill: Rectangle {
-        id: pill
-        property string icon: ""
-        property string text: ""
-        property color tint: Theme.fg
-        signal clicked()
+    // --- Battery Logic ---
+    readonly property var bat: UPower.displayDevice
+    readonly property bool hasBat: bat !== null
 
-        implicitWidth: pillRow.implicitWidth + 16
-        implicitHeight: 28
-        radius: 8
-        color: pillMouse.containsMouse ? Theme.surfaceHi : "transparent"
-        Behavior on color { ColorAnimation { duration: 150 } }
-
-        Row {
-            id: pillRow
-            anchors.centerIn: parent
-            spacing: 6
-            Text {
-                visible: pill.icon !== ""
-                text: pill.icon
-                color: pill.tint
-                font.family: Theme.font
-                font.pixelSize: 13
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            Text {
-                visible: pill.text !== ""
-                text: pill.text
-                color: pill.tint
-                font.family: Theme.font
-                font.pixelSize: 12
-                font.bold: true
-                anchors.verticalCenter: parent.verticalCenter
-            }
-        }
-        MouseArea {
-            id: pillMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: pill.clicked()
-        }
+    // Calculate percentage (handle both 0-1 and 0-100 ranges)
+    readonly property real batPct: {
+        if (!hasBat) return 0
+        var p = bat.percentage
+        return p > 1 ? p / 100 : p
     }
 
-    // ---------- Background ----------
+    readonly property bool charging: hasBat && (bat.state === UPowerDeviceState.Charging)
+    readonly property bool plugged: hasBat && (bat.state === UPowerDeviceState.FullyCharged)
+
+    function getBatteryIcon() {
+        if (charging || plugged) return "" // fa-plug
+        if (batPct >= 0.75) return ""
+        if (batPct >= 0.50) return ""
+        if (batPct >= 0.25) return ""
+        if (batPct >= 0.10) return ""
+        return ""
+    }
+
+    // --- Background Capsule ---
     Rectangle {
         anchors.fill: parent
-        color: Theme.barBg
-        radius: 16
+        radius: 22
+        color: bar.nBlack
         border.width: 1
-        border.color: Theme.line
+        border.color: bar.nDim
     }
 
     Item {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: 15
+        anchors.rightMargin: 15
 
-        // ---------- Left: Workspaces (10 per monitor) ----------
+        // ==========================================
+        // LEFT: CIRCULAR WORKSPACES
+        // ==========================================
         Row {
             id: wsRow
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 3
+            spacing: 8
 
             readonly property var activeWs: bar.hmon ? bar.hmon.activeWorkspace : null
-
-            readonly property int offset: (activeWs && activeWs.id > 0)
-                ? Math.floor((activeWs.id - 1) / 10) * 10
-                : 0
+            readonly property int offset: (activeWs && activeWs.id > 0) ? Math.floor((activeWs.id - 1) / 10) * 10 : 0
             readonly property var list: [1,2,3,4,5,6,7,8,9,10].map(function(i) { return offset + i })
-
-            readonly property var icons: [
-                "󰈹", "", "", "", "󰍩",
-                "󰈙", "󰉋", "󰆍", "󰹑", "󰫔"
-            ]
 
             function find(id) {
                 var l = Hyprland.workspaces.values
-                for (var i = 0; i < l.length; i++)
-                    if (l[i].id === id) return l[i]
+                for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]
                 return null
             }
 
@@ -110,42 +100,44 @@ PanelWindow {
 
             function step(dir) {
                 var cur = activeWs ? activeWs.id : (offset + 1)
-                var blockStart = offset + 1
-                var blockEnd = offset + 10
                 var next = cur + dir
-                if (next < blockStart) next = blockEnd
-                if (next > blockEnd) next = blockStart
+                if (next < offset + 1) next = offset + 10
+                if (next > offset + 10) next = offset + 1
                 switchTo(next)
             }
 
             Repeater {
                 model: wsRow.list
-                delegate: Rectangle {
+                delegate: Item {
                     id: wsItem
                     required property var modelData
                     readonly property var obj: wsRow.find(modelData)
                     readonly property bool active: wsRow.activeWs !== null && wsRow.activeWs.id === modelData
                     readonly property bool occupied: obj !== null && obj.toplevels.values.length > 0
 
-                    width: 26
-                    height: 26
-                    radius: 7
-                    color: active ? Theme.accent
-                         : (wsHover.containsMouse ? Theme.surfaceHi : "transparent")
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                    width: 28
+                    height: 28
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 14 // Perfect circle
+                        color: wsItem.active ? bar.nWhite : "transparent"
+                        border.width: wsItem.active ? 0 : 1
+                        border.color: wsItem.occupied ? bar.nRed : bar.nDim
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                    }
 
                     Text {
                         anchors.centerIn: parent
-                        text: wsRow.icons[(wsItem.modelData - 1) % 10]
-                        color: wsItem.active ? Theme.bg
-                             : wsItem.occupied ? Theme.fg
-                             : Theme.dim
-                        font.family: Theme.font
-                        font.pixelSize: 12
+                        text: String(wsItem.modelData)
+                        color: wsItem.active ? bar.nBlack : (wsItem.occupied ? bar.nRed : bar.nDim)
+                        font.family: bar.fDotStr
+                        font.pixelSize: 16
+                        font.bold: true
                     }
 
                     MouseArea {
-                        id: wsHover
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -158,70 +150,120 @@ PanelWindow {
             }
         }
 
-        // ---------- Center: Active Window Title ----------
-        Text {
-            id: windowTitle
+        // ==========================================
+        // CENTER: TIME & DATE CAPSULE
+        // ==========================================
+        Rectangle {
             anchors.centerIn: parent
-            width: Math.min(implicitWidth, parent.width * 0.35)
-            elide: Text.ElideRight
-            horizontalAlignment: Text.AlignHCenter
+            width: centerContent.implicitWidth + 30
+            height: 28
+            radius: 14
+            color: bar.nSurface
+            border.width: 1
+            border.color: bar.nDim
 
-            readonly property string title: ToplevelManager.activeToplevel ? ToplevelManager.activeToplevel.title : ""
+            SystemClock { id: clock; precision: SystemClock.Minutes }
 
-            visible: title !== ""
-            text: title
-            color: Theme.fg
-            opacity: 0.8
-            font.family: Theme.font
-            font.pixelSize: 12
-            font.bold: true
+            Row {
+                id: centerContent
+                anchors.centerIn: parent
+                spacing: 6
 
-            Behavior on text {
-                SequentialAnimation {
-                    NumberAnimation { target: windowTitle; property: "opacity"; to: 0; duration: 100 }
-                    NumberAnimation { target: windowTitle; property: "opacity"; to: 0.8; duration: 100 }
+                Text {
+                    text: Qt.formatDateTime(clock.date, "HH:mm")
+                    color: bar.nWhite
+                    font.family: bar.fGroteskStr
+                    font.pixelSize: 13
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: "·"
+                    color: bar.nRed
+                    font.family: bar.fGroteskStr
+                    font.pixelSize: 16
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: Qt.formatDateTime(clock.date, "dd, MMM")
+                    color: bar.nWhite
+                    font.family: bar.fGroteskStr
+                    font.pixelSize: 13
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
                 }
             }
         }
 
-        // ---------- Right Side ----------
+        // ==========================================
+        // RIGHT: SYSTEM STATS
+        // ==========================================
         Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
 
-            SystemClock { id: clock; precision: SystemClock.Minutes }
-
-            BarPill {
-                icon: (audio && !audio.muted && audio.volume > 0) ? Theme.iVolHigh : Theme.iVolOff
-                text: audio ? Math.round(audio.volume * 100) + "%" : "—"
-                onClicked: bar.togglePanel("audio", bar.modelData)
-            }
-
-            BarPill {
-                icon: !Net.wifiEnabled ? Theme.iWifiOff
-                      : (Net.connected !== "" ? Theme.wifiIcon(Net.activeSignal) : Theme.iWifiOff)
-                tint: Net.wifiEnabled && Net.connected !== "" ? Theme.fg : Theme.dim
-                onClicked: bar.togglePanel("net", bar.modelData)
-            }
-
-            BarPill {
-                icon: Notifs.dnd ? Theme.iBellOff : Theme.iBell
+            // 1. Notifications
+            NothingBlock {
+                icon: Notifs.dnd ? "󰂛" : "󰂚"
                 text: Notifs.count > 0 ? String(Notifs.count) : ""
-                tint: Notifs.dnd ? Theme.dim : Theme.fg
+
+                // Turn red if DND is on OR if there are unread notifications
+                active: Notifs.dnd || Notifs.count > 0
+
+                hoverShape: "star"
+                nRed: bar.nRed
+                nWhite: bar.nWhite
+                nDim: bar.nDim
+                fMonoStr: bar.fMonoStr
+                fGroteskStr: bar.fGroteskStr
+                barHeight: bar.height - 8
                 onClicked: bar.togglePanel("notif", bar.modelData)
             }
 
-            BarPill {
-                icon: Theme.iCal
-                text: Qt.formatDateTime(clock.date, "dd MMM")
-                onClicked: bar.togglePanel("cal", bar.modelData)
+            // 2. Internet
+            NothingBlock {
+                icon: Net.connected !== "" ? "󰤨" : "󰤮"
+                hoverShape: "pentagon"
+                nRed: bar.nRed
+                nWhite: bar.nWhite
+                nDim: bar.nDim
+                fMonoStr: bar.fMonoStr
+                fGroteskStr: bar.fGroteskStr
+                barHeight: bar.height - 8
+                onClicked: bar.togglePanel("net", bar.modelData)
             }
 
-            BarPill {
-                icon: Theme.iClock
-                text: Qt.formatDateTime(clock.date, "HH:mm")
-                onClicked: {}
+            // 3. Volume
+            NothingBlock {
+                text: audio ? Math.round(audio.volume * 100) + "%" : "0%"
+                icon: "󰕾"
+                hoverShape: "hexagon"
+                nRed: bar.nRed
+                nWhite: bar.nWhite
+                nDim: bar.nDim
+                fMonoStr: bar.fMonoStr
+                fGroteskStr: bar.fGroteskStr
+                barHeight: bar.height - 8
+                onClicked: bar.togglePanel("audio", bar.modelData)
+            }
+
+            // 4. Battery
+            NothingBlock {
+                visible: bar.hasBat
+                icon: bar.getBatteryIcon()
+                text: bar.hasBat ? Math.round(bar.batPct * 100) + "%" : ""
+                hoverShape: "circle"
+                nRed: bar.nRed
+                nWhite: bar.nWhite
+                nDim: bar.nDim
+                fMonoStr: bar.fMonoStr
+                fGroteskStr: bar.fGroteskStr
+                barHeight: bar.height - 8
+                onClicked: bar.togglePanel("sys", bar.modelData)
             }
         }
     }
