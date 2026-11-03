@@ -5,6 +5,21 @@ import Quickshell.Bluetooth
 Item {
     id: page
 
+    FontLoader { id: fDoto; source: "../../fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fMono; source: "../../fonts/SpaceMono-Regular.ttf" }
+    FontLoader { id: fGrotesk; source: "../../fonts/SpaceGrotesk-Regular.otf" }
+
+    readonly property string fDot: fDoto.name !== "" ? fDoto.name : "monospace"
+    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
+    readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+
+    readonly property color nBlack: "#000000"
+    readonly property color nWhite: "#ffffff"
+    readonly property color nRed: "#d71921"
+    readonly property color nDim: "#2a2a2a"
+    readonly property color nSurface: "#0d0d0d"
+    readonly property color nText: "#666666"
+
     readonly property var adapter: Bluetooth.defaultAdapter
 
     Component.onCompleted: if (adapter && adapter.enabled) adapter.discovering = true
@@ -41,16 +56,15 @@ Item {
 
     Flickable {
         anchors.fill: parent
-        anchors.margins: 20
         contentWidth: width
-        contentHeight: col.implicitHeight
+        contentHeight: content.implicitHeight
         boundsBehavior: Flickable.StopAtBounds
         clip: true
 
         ColumnLayout {
-            id: col
+            id: content
             width: parent.width
-            spacing: 12
+            spacing: 20
 
             // Header
             RowLayout {
@@ -58,27 +72,39 @@ Item {
 
                 Text {
                     text: "BLUETOOTH"
-                    color: Theme.accent
-                    font.family: Theme.font
-                    font.pixelSize: 16
+                    color: page.nWhite
+                    font.family: page.fDot
+                    font.pixelSize: 42
                     font.bold: true
-                    font.letterSpacing: 3
+                    font.letterSpacing: 4
+                }
+
+                Rectangle {
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 3
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.leftMargin: 20
+                    color: page.nRed
                 }
 
                 Item { Layout.fillWidth: true }
 
-                // Scan button
+                // Scan
                 Rectangle {
                     visible: adapter !== null && adapter.enabled
-                    width: 28; height: 28; radius: 14
-                    color: scanHover.containsMouse ? Theme.surfaceHi : "transparent"
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    color: scanHover.containsMouse ? page.nDim : page.nSurface
+                    border.width: 1
+                    border.color: page.nDim
+
                     Text {
                         anchors.centerIn: parent
-                        text: "󰑐"
-                        color: adapter && adapter.discovering ? Theme.accent : Theme.fg
-                        font.family: Theme.font
-                        font.pixelSize: 14
+                        text: "↻"
+                        color: adapter && adapter.discovering ? page.nRed : page.nWhite
+                        font.pixelSize: 20
                     }
+
                     MouseArea {
                         id: scanHover
                         anchors.fill: parent
@@ -88,19 +114,27 @@ Item {
                     }
                 }
 
-                // BT toggle
+                // Toggle
                 Rectangle {
                     visible: adapter !== null
-                    width: 44; height: 24; radius: 12
-                    color: (adapter && adapter.enabled) ? Theme.accent : Theme.surfaceHi
+                    Layout.preferredWidth: 60
+                    Layout.preferredHeight: 40
+                    Layout.leftMargin: 8
+                    color: (adapter && adapter.enabled) ? page.nWhite : page.nSurface
+                    border.width: 1
+                    border.color: page.nDim
                     Behavior on color { ColorAnimation { duration: 150 } }
-                    Rectangle {
-                        width: 18; height: 18; radius: 9
-                        y: 3
-                        x: (adapter && adapter.enabled) ? parent.width - width - 3 : 3
-                        color: (adapter && adapter.enabled) ? Theme.bg : Theme.fg
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutQuint } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: (adapter && adapter.enabled) ? "ON" : "OFF"
+                        color: (adapter && adapter.enabled) ? page.nBlack : page.nText
+                        font.family: page.fSans
+                        font.pixelSize: 12
+                        font.bold: true
+                        font.letterSpacing: 2
                     }
+
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -109,153 +143,146 @@ Item {
                 }
             }
 
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
+
             // Status
             Text {
                 Layout.fillWidth: true
-                text: !adapter ? "No bluetooth adapter found"
-                    : (!adapter.enabled ? "Bluetooth is off"
-                    : (adapter.discovering ? "Scanning…" : "Ready"))
-                color: (adapter && adapter.enabled) ? Theme.accent : Theme.dim
-                font.family: Theme.font
-                font.pixelSize: 10
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: Theme.line
-            }
-
-            Text {
-                text: "DEVICES"
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: 10
-                font.bold: true
+                text: !adapter ? "▸ No bluetooth adapter"
+                    : (!adapter.enabled ? "▸ Bluetooth is off"
+                    : (adapter.discovering ? "▸ Scanning for devices..." : "▸ Ready"))
+                color: (adapter && adapter.enabled) ? page.nRed : page.nText
+                font.family: page.fMonoStr
+                font.pixelSize: 12
                 font.letterSpacing: 2
             }
 
-            // Off state
+            // Devices
+            Text {
+                text: "DEVICES"
+                color: page.nRed
+                font.family: page.fSans
+                font.pixelSize: 11
+                font.letterSpacing: 4
+                font.bold: true
+                Layout.topMargin: 4
+            }
+
             Text {
                 visible: !adapter || !adapter.enabled
                 Layout.fillWidth: true
-                Layout.topMargin: 30
-                horizontalAlignment: Text.AlignHCenter
-                text: "Bluetooth is off"
-                color: Theme.dim
-                font.family: Theme.font
-                font.pixelSize: 12
+                Layout.topMargin: 20
+                text: "▸ Enable bluetooth to see devices"
+                color: page.nText
+                font.family: page.fMonoStr
+                font.pixelSize: 13
+                font.italic: true
             }
 
-            // Device list
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                visible: adapter !== null && adapter.enabled
+            Repeater {
+                model: adapter && adapter.enabled ? page.devices : []
+                delegate: Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    implicitHeight: 68
+                    color: modelData.connected ? page.nSurface : "transparent"
+                    border.width: 1
+                    border.color: modelData.connected ? page.nWhite : page.nDim
 
-                Repeater {
-                    model: page.devices
-                    delegate: Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true
-                        height: 50
-                        radius: 10
-                        color: modelData.connected ? Theme.surfaceHi : (devHover.containsMouse ? Theme.surfaceHi : "transparent")
-                        border.width: modelData.connected ? 1 : 0
-                        border.color: Theme.accent
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (modelData.connected) modelData.disconnect()
+                            else if (page.paired(modelData)) modelData.connect()
+                            else { modelData.trusted = true; modelData.pair() }
+                        }
+                    }
 
-                        // Row click (behind buttons)
-                        MouseArea {
-                            id: devHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (modelData.connected) modelData.disconnect()
-                                else if (page.paired(modelData)) modelData.connect()
-                                else { modelData.trusted = true; modelData.pair() }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 16
+
+                        Text {
+                            text: page.deviceIcon(modelData)
+                            color: modelData.connected ? page.nRed : page.nWhite
+                            font.family: page.fMonoStr
+                            font.pixelSize: 22
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: (modelData.name || modelData.address).toUpperCase()
+                                color: page.nWhite
+                                font.family: page.fSans
+                                font.pixelSize: 13
+                                font.bold: modelData.connected
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: {
+                                    if (modelData.state === 2) return "CONNECTING..."
+                                    if (modelData.pairing) return "PAIRING..."
+                                    if (modelData.connected) {
+                                        var b = modelData.batteryAvailable ? "  ·  " + Math.round(modelData.battery * 100) + "%" : ""
+                                        return "CONNECTED" + b
+                                    }
+                                    return page.paired(modelData) ? "PAIRED" : "AVAILABLE"
+                                }
+                                color: modelData.connected ? page.nRed : page.nText
+                                font.family: page.fMonoStr
+                                font.pixelSize: 9
+                                font.letterSpacing: 2
                             }
                         }
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 12
+                        // Forget
+                        Rectangle {
+                            visible: page.paired(modelData)
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
+                            color: fHover.containsMouse ? page.nRed : "transparent"
+                            border.width: 1
+                            border.color: page.nDim
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
                             Text {
-                                text: page.deviceIcon(modelData)
-                                color: modelData.connected ? Theme.accent : Theme.fg
-                                font.family: Theme.font
-                                font.pixelSize: 18
+                                anchors.centerIn: parent
+                                text: "×"
+                                color: fHover.containsMouse ? page.nWhite : page.nText
+                                font.pixelSize: 16
                             }
 
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: modelData.name || modelData.address
-                                    color: Theme.fg
-                                    font.family: Theme.font
-                                    font.pixelSize: 13
-                                    font.bold: modelData.connected
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    text: {
-                                        if (modelData.state === 2) return "Connecting…"
-                                        if (modelData.pairing) return "Pairing…"
-                                        if (modelData.connected) {
-                                            var b = modelData.batteryAvailable ? "  ·  " + Math.round(modelData.battery * 100) + "%" : ""
-                                            return "Connected" + b
-                                        }
-                                        return page.paired(modelData) ? "Paired" : "Available"
-                                    }
-                                    color: modelData.connected ? Theme.accent : Theme.dim
-                                    font.family: Theme.font
-                                    font.pixelSize: 10
-                                }
-                            }
-
-                            // Forget button — declared AFTER the row layout content so it can receive clicks
-                            Rectangle {
-                                visible: page.paired(modelData)
-                                width: 28; height: 28; radius: 8
-                                color: forgetHover.containsMouse ? Theme.err : "transparent"
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "󰆴"
-                                    color: forgetHover.containsMouse ? Theme.bg : Theme.dim
-                                    font.family: Theme.font
-                                    font.pixelSize: 12
-                                }
-                                MouseArea {
-                                    id: forgetHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: modelData.forget()
-                                }
+                            MouseArea {
+                                id: fHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: modelData.forget()
                             }
                         }
                     }
                 }
-
-                Text {
-                    visible: adapter && adapter.enabled && page.devices.length === 0
-                    Layout.fillWidth: true
-                    Layout.topMargin: 30
-                    horizontalAlignment: Text.AlignHCenter
-                    text: "No devices found"
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: 11
-                    font.italic: true
-                }
             }
 
-            Item { Layout.preferredHeight: 10 }
+            Text {
+                visible: adapter && adapter.enabled && page.devices.length === 0
+                Layout.fillWidth: true
+                Layout.topMargin: 20
+                text: "▸ No devices found"
+                color: page.nText
+                font.family: page.fMonoStr
+                font.pixelSize: 13
+                font.italic: true
+            }
+
+            Item { Layout.preferredHeight: 20 }
         }
     }
 }
