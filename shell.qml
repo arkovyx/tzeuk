@@ -1,6 +1,9 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
+import "bar"
+import "panel"
+import "launcher"
 
 ShellRoot {
     id: root
@@ -8,7 +11,6 @@ ShellRoot {
     property bool panelOpen: false
     property var panelScreen: null
     property string activeTab: "home"
-
     property bool calOpen: false
     property var calScreen: null
 
@@ -59,7 +61,6 @@ ShellRoot {
         }
     }
 
-    // --- Load the Launcher ---
     Launcher {
         id: launcher
     }
