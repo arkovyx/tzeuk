@@ -1,2 +1,3 @@
-![TZEUK](assets/banner.png)
-
+<p align="center">
+  <img src="assets/banner.png" alt="TZEUK">
+</p>
