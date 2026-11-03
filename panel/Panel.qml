@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import "../themes"
 
 PanelWindow {
     id: win
@@ -14,15 +15,26 @@ PanelWindow {
     signal closeRequested()
 
     visible: opened
-    anchors { top: true; right: true }
-    margins { top: 50; right: 12 }
-    implicitWidth: 540
-    implicitHeight: 620
-    exclusiveZone: 0
+    anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "tzeuk-panel"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    FontLoader { id: fDoto; source: "../fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
+    FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
+
+    readonly property string fDot: fDoto.name !== "" ? fDoto.name : "monospace"
+    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
+    readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+
+    readonly property color nBlack: "#000000"
+    readonly property color nWhite: "#ffffff"
+    readonly property color nRed: "#d71921"
+    readonly property color nDim: "#2a2a2a"
+    readonly property color nSurface: "#0d0d0d"
+    readonly property color nText: "#666666"
 
     onOpenedChanged: {
         if (opened) grabDelay.start()
@@ -41,119 +53,195 @@ PanelWindow {
         onCleared: win.closeRequested()
     }
 
-    Item {
+    // Click outside to close
+    MouseArea {
         anchors.fill: parent
-        scale: win.opened ? 1.0 : 0.95
-        opacity: win.opened ? 1.0 : 0.0
-        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
+        onClicked: win.closeRequested()
+    }
 
-        // Glassmorphism background
-        Rectangle {
+    // Centered panel
+    Rectangle {
+        id: panel
+        width: 1100
+        height: 700
+        anchors.centerIn: parent
+        color: win.nBlack
+        border.width: 1
+        border.color: win.nDim
+
+        focus: true
+        Keys.onEscapePressed: win.closeRequested()
+
+        // Absorb clicks inside the panel
+        MouseArea { anchors.fill: parent }
+
+        // Dot pattern
+        Canvas {
             anchors.fill: parent
-            color: Theme.bg
-            opacity: 0.92
-            radius: 20
-            border.width: 1
-            border.color: Theme.line
+            opacity: 0.02
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.fillStyle = "white"
+                for (var x = 0; x < width; x += 20) {
+                    for (var y = 0; y < height; y += 20) {
+                        ctx.beginPath()
+                        ctx.arc(x, y, 1, 0, Math.PI * 2)
+                        ctx.fill()
+                    }
+                }
+            }
         }
 
         RowLayout {
             anchors.fill: parent
             spacing: 0
 
-            // --- Sidebar ---
-            Rectangle {
+            // ===== SIDEBAR =====
+            Item {
+                Layout.preferredWidth: 220
                 Layout.fillHeight: true
-                Layout.preferredWidth: 80
-                color: "transparent"
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.topMargin: 20
-                    spacing: 8
+                // Close button
+                Rectangle {
+                    id: closeBtn
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 24
+                    width: 44
+                    height: 44
+                    radius: 22
+                    color: closeMouse.containsMouse ? win.nDim : "transparent"
+                    border.width: 1
+                    border.color: win.nDim
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        color: win.nWhite
+                        font.family: win.fMonoStr
+                        font.pixelSize: 22
+                    }
+
+                    MouseArea {
+                        id: closeMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.closeRequested()
+                    }
+                }
+
+                // Red dot indicator next to close
+                Rectangle {
+                    anchors.left: closeBtn.right
+                    anchors.leftMargin: 14
+                    anchors.verticalCenter: closeBtn.verticalCenter
+                    width: 8
+                    height: 8
+                    radius: 4
+                    color: win.nRed
+                    SequentialAnimation on opacity {
+                        running: win.opened
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.2; duration: 900 }
+                        NumberAnimation { to: 1.0; duration: 900 }
+                    }
+                }
+
+                // Tabs
+                Column {
+                    anchors.top: closeBtn.bottom
+                    anchors.topMargin: 48
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    spacing: 0
 
                     Repeater {
                         model: [
-                            { id: "home",  icon: "󰋜",           label: "Home" },
-                            { id: "audio", icon: Theme.iVolHigh, label: "Audio" },
-                            { id: "net",   icon: Theme.iWifiHigh, label: "Net" },
-                            { id: "bt",    icon: "󰂯",           label: "BT" },
-                            { id: "sys",   icon: "󰍛",           label: "Sys" },
-                            { id: "notif", icon: Theme.iBell,    label: "Notifs" }
+                            { id: "home", label: "HOME" },
+                            { id: "audio", label: "AUDIO" },
+                            { id: "net", label: "NETWORK" },
+                            { id: "bt", label: "BLUETOOTH" },
+                            { id: "sys", label: "SYSTEM" },
+                            { id: "notif", label: "NOTIFS" }
                         ]
+
                         delegate: Item {
+                            id: tabItem
                             required property var modelData
-                            Layout.fillWidth: true
-                            implicitHeight: 56
-                            readonly property bool isActive: win.activeTab === modelData.id
+                            required property int index
+                            readonly property bool isActive: win.activeTab === tabItem.modelData.id
+
+                            width: parent.width
+                            height: 52
 
                             Rectangle {
-                                anchors.centerIn: parent
-                                width: 56
-                                height: 56
-                                radius: 16
-                                color: isActive ? Theme.surfaceHi : (mouse.containsMouse ? Theme.surfaceHi : "transparent")
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                anchors.fill: parent
+                                color: tabMouse.containsMouse ? win.nSurface : "transparent"
+                            }
 
-                                Column {
-                                    anchors.centerIn: parent
-                                    spacing: 2
-                                    Text {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        text: modelData.icon
-                                        color: isActive ? Theme.accent : Theme.fg
-                                        font.family: Theme.font
-                                        font.pixelSize: 20
-                                    }
-                                    Text {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        text: modelData.label
-                                        color: isActive ? Theme.accent : Theme.dim
-                                        font.family: Theme.font
-                                        font.pixelSize: 10
-                                        font.bold: isActive
-                                    }
-                                }
+                            Rectangle {
+                                width: 3
+                                height: tabItem.height - 16
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: win.nRed
+                                visible: tabItem.isActive
+                            }
+
+                            Text {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 28
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: tabItem.modelData.label
+                                color: tabItem.isActive ? win.nWhite : win.nText
+                                font.family: win.fDot
+                                font.pixelSize: 20
+                                font.letterSpacing: 3
+                                font.bold: tabItem.isActive
                             }
 
                             MouseArea {
-                                id: mouse
+                                id: tabMouse
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: win.tabChanged(modelData.id)
+                                onClicked: win.tabChanged(tabItem.modelData.id)
                             }
                         }
                     }
                 }
             }
 
-            // --- Content ---
+            // ===== RED DIVIDER =====
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.fillHeight: true
+                color: win.nRed
+                opacity: 0.4
+            }
+
+            // ===== CONTENT =====
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                Loader {
+                Item {
                     anchors.fill: parent
-                    source: {
-                        if (win.activeTab === "home")  return "HomePage.qml"
-                        if (win.activeTab === "audio") return "AudioPage.qml"
-                        if (win.activeTab === "net")   return "NetPage.qml"
-                        if (win.activeTab === "bt")    return "BtPage.qml"
-                        if (win.activeTab === "sys")   return "SysPage.qml"
-                        if (win.activeTab === "notif") return "NotifPage.qml"
-                        return ""
-                    }
-                }
+                    anchors.margins: 40
 
-                Text {
-                    anchors.centerIn: parent
-                    visible: ["home","audio","net","bt","sys","notif"].indexOf(win.activeTab) < 0
-                    text: "Coming Soon"
-                    color: Theme.dim
-                    font.family: Theme.font
-                    font.pixelSize: 16
+                    Loader {
+                        anchors.fill: parent
+                        source: {
+                            if (win.activeTab === "home") return "tabs/HomePage.qml"
+                            if (win.activeTab === "audio") return "tabs/AudioPage.qml"
+                            if (win.activeTab === "net") return "tabs/NetPage.qml"
+                            if (win.activeTab === "bt") return "tabs/BtPage.qml"
+                            if (win.activeTab === "sys") return "tabs/SysPage.qml"
+                            if (win.activeTab === "notif") return "tabs/NotifPage.qml"
+                            return ""
+                        }
+                    }
                 }
             }
         }

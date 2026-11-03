@@ -6,57 +6,67 @@ import Quickshell.Hyprland
 
 Singleton {
     id: root
+
+    // ============================================
+    // FONTS
+    // ============================================
     readonly property string font: "JetBrainsMono Nerd Font"
     readonly property string sans: "JetBrainsMono Nerd Font"
+
+    // ============================================
+    // NOTHING OS PALETTE (hardcoded, always dark)
+    // ============================================
+    readonly property color bg: "#000000"
+    readonly property color fg: "#ffffff"
+    readonly property color accent: "#d71921"
+    readonly property color barBg: Qt.rgba(0, 0, 0, 0.85)
+    readonly property color surfaceHi: Qt.rgba(1, 1, 1, 0.10)
+    readonly property color line: Qt.rgba(1, 1, 1, 0.20)
+    readonly property color dim: Qt.rgba(1, 1, 1, 0.50)
+    readonly property color err: "#d71921"
+
+    // ============================================
+    // PY WAL (still available for anything that wants it)
+    // ============================================
     readonly property string walFile: Quickshell.env("HOME") + "/.cache/wal/colors.json"
 
     FileView {
+        id: walFileView
         path: root.walFile
         watchChanges: true
         onFileChanged: reload()
         adapter: JsonAdapter {
             id: wal
             property JsonObject special: JsonObject {
-                property string background: "#0b1514"
-                property string foreground: "#cfe3df"
+                property string background: "#000000"
+                property string foreground: "#ffffff"
             }
             property JsonObject colors: JsonObject {
-                property string color14: "#6fd6c5"
+                property string color14: "#d71921"
             }
         }
     }
 
-    readonly property color bg: wal.special.background
-    readonly property color fg: wal.special.foreground
-    readonly property color accent: Qt.color(wal.colors.color14)
-    readonly property color barBg: Qt.rgba(bg.r, bg.g, bg.b, 0.85)
-    readonly property color surfaceHi: Qt.rgba(fg.r, fg.g, fg.b, 0.1)
-    readonly property color line: Qt.rgba(fg.r, fg.g, fg.b, 0.2)
-    readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.5)
+    readonly property color walBg: wal.special.background
+    readonly property color walFg: wal.special.foreground
+    readonly property color walAccent: Qt.color(wal.colors.color14)
 
+    // ============================================
+    // ICONS
+    // ============================================
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
-
-    // System / Clock
     readonly property string iClock: cp(0xF0954)
     readonly property string iCal: cp(0xF00ED)
-
-    // Audio
     readonly property string iVolHigh: cp(0xF057E)
     readonly property string iVolMed: cp(0xF0580)
     readonly property string iVolLow: cp(0xF057F)
     readonly property string iVolOff: cp(0xF0581)
-
-    // Network
     readonly property string iWifiHigh: cp(0xF0928)
     readonly property string iWifiMed: cp(0xF0925)
     readonly property string iWifiLow: cp(0xF0922)
     readonly property string iWifiOff: cp(0xF05AA)
-
-    // Notifications
     readonly property string iBell: cp(0xF009A)
     readonly property string iBellOff: cp(0xF009B)
-
-    // Battery / System
     readonly property string iBatFull: cp(0xF0079)
     readonly property string iBatCharging: cp(0xF0084)
     readonly property string iCpu: cp(0xF061A)
@@ -66,7 +76,9 @@ Singleton {
         return sig >= 75 ? iWifiHigh : sig >= 50 ? iWifiMed : sig >= 25 ? iWifiLow : iWifiOff
     }
 
-    // --- Launcher Compatibility Layer ---
+    // ============================================
+    // LAUNCHER COMPATIBILITY
+    // ============================================
     readonly property color bright: "#ffffff"
     readonly property color ink: "#000000"
     readonly property color warn: "#f5a97f"
@@ -106,4 +118,3 @@ Singleton {
         return l.length ? l[0] : null
     }
 }
-
