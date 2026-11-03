@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "../themes"
 
 PanelWindow {
     id: win
@@ -53,13 +52,19 @@ PanelWindow {
         onCleared: win.closeRequested()
     }
 
-    // Click outside to close
     MouseArea {
         anchors.fill: parent
         onClicked: win.closeRequested()
     }
 
-    // Centered panel
+    // Fade animation
+    Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+        opacity: win.opened ? 0.5 : 0.0
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+    }
+
     Rectangle {
         id: panel
         width: 1100
@@ -68,22 +73,25 @@ PanelWindow {
         color: win.nBlack
         border.width: 1
         border.color: win.nDim
+        scale: win.opened ? 1.0 : 0.96
+        opacity: win.opened ? 1.0 : 0.0
+        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutQuint } }
+        Behavior on opacity { NumberAnimation { duration: 200 } }
 
         focus: true
         Keys.onEscapePressed: win.closeRequested()
 
-        // Absorb clicks inside the panel
         MouseArea { anchors.fill: parent }
 
-        // Dot pattern
+        // Subtle dot pattern
         Canvas {
             anchors.fill: parent
-            opacity: 0.02
+            opacity: 0.03
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.fillStyle = "white"
-                for (var x = 0; x < width; x += 20) {
-                    for (var y = 0; y < height; y += 20) {
+                for (var x = 0; x < width; x += 22) {
+                    for (var y = 0; y < height; y += 22) {
                         ctx.beginPath()
                         ctx.arc(x, y, 1, 0, Math.PI * 2)
                         ctx.fill()
@@ -101,7 +109,6 @@ PanelWindow {
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
 
-                // Close button
                 Rectangle {
                     id: closeBtn
                     anchors.top: parent.top
@@ -117,9 +124,10 @@ PanelWindow {
                     Text {
                         anchors.centerIn: parent
                         text: "×"
-                        color: win.nWhite
+                        color: closeMouse.containsMouse ? win.nRed : win.nWhite
                         font.family: win.fMonoStr
-                        font.pixelSize: 22
+                        font.pixelSize: 24
+                        Behavior on color { ColorAnimation { duration: 150 } }
                     }
 
                     MouseArea {
@@ -131,7 +139,7 @@ PanelWindow {
                     }
                 }
 
-                // Red dot indicator next to close
+                // Pulsing red LED
                 Rectangle {
                     anchors.left: closeBtn.right
                     anchors.leftMargin: 14
@@ -148,10 +156,34 @@ PanelWindow {
                     }
                 }
 
+                // TZEUK wordmark
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 24
+                    anchors.top: closeBtn.bottom
+                    anchors.topMargin: 40
+                    text: "TZEUK"
+                    color: win.nWhite
+                    font.family: win.fDot
+                    font.pixelSize: 32
+                    font.bold: true
+                    font.letterSpacing: 6
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 24
+                    anchors.top: parent.top
+                    anchors.topMargin: 128
+                    width: 32
+                    height: 2
+                    color: win.nRed
+                }
+
                 // Tabs
                 Column {
-                    anchors.top: closeBtn.bottom
-                    anchors.topMargin: 48
+                    anchors.top: parent.top
+                    anchors.topMargin: 160
                     anchors.left: parent.left
                     anchors.right: parent.right
                     spacing: 0
@@ -169,11 +201,10 @@ PanelWindow {
                         delegate: Item {
                             id: tabItem
                             required property var modelData
-                            required property int index
                             readonly property bool isActive: win.activeTab === tabItem.modelData.id
 
                             width: parent.width
-                            height: 52
+                            height: 50
 
                             Rectangle {
                                 anchors.fill: parent
@@ -196,9 +227,10 @@ PanelWindow {
                                 text: tabItem.modelData.label
                                 color: tabItem.isActive ? win.nWhite : win.nText
                                 font.family: win.fDot
-                                font.pixelSize: 20
+                                font.pixelSize: 18
                                 font.letterSpacing: 3
                                 font.bold: tabItem.isActive
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             MouseArea {
@@ -210,6 +242,19 @@ PanelWindow {
                             }
                         }
                     }
+                }
+
+                // Footer
+                Text {
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 24
+                    anchors.left: parent.left
+                    anchors.leftMargin: 24
+                    text: "v0.2.0"
+                    color: win.nText
+                    font.family: win.fMonoStr
+                    font.pixelSize: 10
+                    font.letterSpacing: 2
                 }
             }
 
