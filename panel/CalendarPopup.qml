@@ -12,14 +12,29 @@ PanelWindow {
 
     visible: opened
     anchors { top: true; right: true }
-    margins { top: 56; right: 12 } // Right under the calendar pill
-    implicitWidth: 340
-    implicitHeight: 400
+    margins { top: 56; right: 20 }
+    implicitWidth: 360
+    implicitHeight: 420
     exclusiveZone: 0
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "tzeuk-calendar"
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+
+    FontLoader { id: fDoto; source: "../fonts/Doto.ttf" }
+    FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
+    FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
+
+    readonly property string fDot: fDoto.name !== "" ? fDoto.name : "monospace"
+    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
+    readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+
+    readonly property color nBlack: "#000000"
+    readonly property color nWhite: "#ffffff"
+    readonly property color nRed: "#d71921"
+    readonly property color nDim: "#2a2a2a"
+    readonly property color nSurface: "#0d0d0d"
+    readonly property color nText: "#666666"
 
     onOpenedChanged: {
         if (opened) {
@@ -42,11 +57,10 @@ PanelWindow {
         onCleared: win.closeRequested()
     }
 
-    // --- State ---
     SystemClock { id: sysClock; precision: SystemClock.Seconds }
 
     property int year: 0
-    property int month: 0 // 0..11
+    property int month: 0
 
     function today() {
         var d = new Date()
@@ -79,171 +93,205 @@ PanelWindow {
 
     readonly property var now: sysClock.date
 
-    // --- UI ---
-    Item {
+    Rectangle {
         anchors.fill: parent
-        scale: win.opened ? 1.0 : 0.95
-        opacity: win.opened ? 1.0 : 0.0
-        Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutQuint } }
-        Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+        color: win.nBlack
+        border.width: 1
+        border.color: win.nDim
 
-        Rectangle {
+        focus: true
+        Keys.onEscapePressed: win.closeRequested()
+        Keys.onLeftPressed: win.shift(-1)
+        Keys.onRightPressed: win.shift(1)
+        Keys.onSpacePressed: win.today()
+
+        MouseArea {
             anchors.fill: parent
-            color: Theme.bg
-            opacity: 0.95
-            radius: 16
-            border.width: 1
-            border.color: Theme.line
+            onWheel: w => win.shift(w.angleDelta.y > 0 ? -1 : 1)
+        }
 
-            focus: true
-            Keys.onEscapePressed: win.closeRequested()
-            Keys.onLeftPressed: win.shift(-1)
-            Keys.onRightPressed: win.shift(1)
-            Keys.onSpacePressed: win.today()
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 24
+            spacing: 12
 
-            // Scroll to change month
-            MouseArea {
-                anchors.fill: parent
-                onWheel: w => win.shift(w.angleDelta.y > 0 ? -1 : 1)
+            // Big Clock
+            Text {
+                Layout.fillWidth: true
+                text: Qt.formatDateTime(win.now, "HH:mm:ss")
+                color: win.nWhite
+                font.family: win.fDot
+                font.pixelSize: 44
+                font.bold: true
+                font.letterSpacing: 2
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 20
+            // Date
+            Row {
                 spacing: 12
-
-                // Big Clock
+                Rectangle {
+                    width: 24
+                    height: 2
+                    color: win.nRed
+                    anchors.verticalCenter: parent.verticalCenter
+                }
                 Text {
-                    Layout.fillWidth: true
-                    text: Qt.formatDateTime(win.now, "HH:mm:ss")
-                    color: Theme.fg
-                    font.family: Theme.font
-                    font.pixelSize: 32
+                    text: Qt.formatDateTime(win.now, "dddd, d MMMM yyyy").toUpperCase()
+                    color: win.nWhite
+                    font.family: win.fSans
+                    font.pixelSize: 10
                     font.bold: true
+                    font.letterSpacing: 2
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            // Red divider
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: win.nRed
+                opacity: 0.4
+                Layout.topMargin: 4
+                Layout.bottomMargin: 4
+            }
+
+            // Month navigation
+            RowLayout {
+                Layout.fillWidth: true
+
+                Rectangle {
+                    width: 28
+                    height: 28
+                    color: prevHover.containsMouse ? win.nDim : "transparent"
+                    border.width: 1
+                    border.color: win.nDim
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "◀"
+                        color: prevHover.containsMouse ? win.nRed : win.nWhite
+                        font.pixelSize: 12
+                    }
+                    MouseArea {
+                        id: prevHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.shift(-1)
+                    }
                 }
 
-                // Date
                 Text {
                     Layout.fillWidth: true
-                    text: Qt.formatDateTime(win.now, "dddd, d MMMM yyyy")
-                    color: Theme.accent
-                    font.family: Theme.font
-                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    text: Qt.formatDate(new Date(win.year, win.month, 1), "MMMM yyyy").toUpperCase()
+                    color: win.nRed
+                    font.family: win.fSans
+                    font.pixelSize: 13
                     font.bold: true
-                    font.letterSpacing: 1
+                    font.letterSpacing: 4
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.today()
+                    }
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 1
-                    color: Theme.line
-                    Layout.topMargin: 4
-                    Layout.bottomMargin: 4
-                }
-
-                // Month Navigation
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Rectangle {
-                        width: 24; height: 24; radius: 6
-                        color: prevHover.containsMouse ? Theme.surfaceHi : "transparent"
-                        Text { anchors.centerIn: parent; text: "󰅁"; color: Theme.fg; font.family: Theme.font }
-                        MouseArea { id: prevHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.shift(-1) }
-                    }
+                    width: 28
+                    height: 28
+                    color: nextHover.containsMouse ? win.nDim : "transparent"
+                    border.width: 1
+                    border.color: win.nDim
 
                     Text {
+                        anchors.centerIn: parent
+                        text: "▶"
+                        color: nextHover.containsMouse ? win.nRed : win.nWhite
+                        font.pixelSize: 12
+                    }
+                    MouseArea {
+                        id: nextHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.shift(1)
+                    }
+                }
+            }
+
+            // Weekday headers
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 8
+                columnSpacing: 0
+                rowSpacing: 6
+
+                Repeater {
+                    model: ["WK", "MO", "TU", "WE", "TH", "FR", "SA", "SU"]
+                    delegate: Text {
+                        required property var modelData
+                        required property int index
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
-                        text: Qt.formatDate(new Date(win.year, win.month, 1), "MMMM yyyy").toUpperCase()
-                        color: Theme.accent
-                        font.family: Theme.font
-                        font.pixelSize: 13
+                        text: modelData
+                        color: index === 0 ? win.nText : (index >= 6 ? win.nRed : win.nWhite)
+                        font.family: win.fMonoStr
+                        font.pixelSize: 9
                         font.bold: true
-                        font.letterSpacing: 2
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.today() }
-                    }
-
-                    Rectangle {
-                        width: 24; height: 24; radius: 6
-                        color: nextHover.containsMouse ? Theme.surfaceHi : "transparent"
-                        Text { anchors.centerIn: parent; text: "󰅂"; color: Theme.fg; font.family: Theme.font }
-                        MouseArea { id: nextHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: win.shift(1) }
+                        font.letterSpacing: 1
                     }
                 }
-
-                // Weekdays Header
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 8
-                    columnSpacing: 0
-                    rowSpacing: 4
-
-                    Repeater {
-                        model: ["wk", "mo", "tu", "we", "th", "fr", "sa", "su"]
-                        delegate: Text {
-                            required property var modelData
-                            required property int index
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignHCenter
-                            text: modelData
-                            color: index === 0 ? Theme.line : (index >= 6 ? Theme.accent : Theme.dim)
-                            font.family: Theme.font
-                            font.pixelSize: 10
-                            font.bold: true
-                        }
-                    }
-                }
-
-                // Days Grid
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 8
-                    columnSpacing: 0
-                    rowSpacing: 2
-
-                    Repeater {
-                        model: 48
-                        delegate: Rectangle {
-                            id: cell
-                            required property int index
-                            readonly property bool isWeek: index % 8 === 0
-                            readonly property var d: win.days[Math.floor(index / 8) * 7 + Math.max(0, (index % 8) - 1)]
-                            readonly property bool inMonth: d.getMonth() === win.month
-                            readonly property bool isToday: !isWeek && d.toDateString() === win.now.toDateString()
-                            readonly property bool weekend: (index % 8) >= 6
-
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 28
-                            radius: 6
-                            color: isToday ? Theme.accent : (cellHover.containsMouse && !isWeek ? Theme.surfaceHi : "transparent")
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: cell.isWeek ? win.isoWeek(cell.d) : cell.d.getDate()
-                                color: cell.isToday ? Theme.bg
-                                     : cell.isWeek ? Theme.line
-                                     : !cell.inMonth ? Theme.dim
-                                     : cell.weekend ? Theme.accent : Theme.fg
-                                opacity: cell.inMonth || cell.isWeek ? 1.0 : 0.4
-                                font.family: Theme.font
-                                font.pixelSize: cell.isWeek ? 9 : 11
-                                font.bold: cell.isToday
-                            }
-
-                            MouseArea {
-                                id: cellHover
-                                anchors.fill: parent
-                                hoverEnabled: !cell.isWeek
-                                cursorShape: cell.isWeek ? Qt.ArrowCursor : Qt.PointingHandCursor
-                            }
-                        }
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
             }
+
+            // Days
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 8
+                columnSpacing: 0
+                rowSpacing: 2
+
+                Repeater {
+                    model: 48
+                    delegate: Rectangle {
+                        id: cell
+                        required property int index
+                        readonly property bool isWeek: index % 8 === 0
+                        readonly property var d: win.days[Math.floor(index / 8) * 7 + Math.max(0, (index % 8) - 1)]
+                        readonly property bool inMonth: d.getMonth() === win.month
+                        readonly property bool isToday: !isWeek && d.toDateString() === win.now.toDateString()
+                        readonly property bool weekend: (index % 8) >= 6
+
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 26
+                        color: isToday ? win.nRed : (cellHover.containsMouse && !isWeek ? win.nSurface : "transparent")
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: cell.isWeek ? win.isoWeek(cell.d) : cell.d.getDate()
+                            color: cell.isToday ? win.nWhite
+                                 : cell.isWeek ? win.nText
+                                 : !cell.inMonth ? win.nText
+                                 : cell.weekend ? win.nRed : win.nWhite
+                            opacity: cell.inMonth || cell.isWeek ? 1.0 : 0.4
+                            font.family: cell.isWeek ? win.fMonoStr : win.fDot
+                            font.pixelSize: cell.isWeek ? 9 : 12
+                            font.bold: cell.isToday
+                        }
+
+                        MouseArea {
+                            id: cellHover
+                            anchors.fill: parent
+                            hoverEnabled: !cell.isWeek
+                            cursorShape: cell.isWeek ? Qt.ArrowCursor : Qt.PointingHandCursor
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.fillHeight: true }
         }
     }
 }
