@@ -102,7 +102,7 @@ PanelWindow {
         anchors.leftMargin: 15
         anchors.rightMargin: 15
 
-        // LEFT: Workspaces (extracted component)
+        // LEFT: Workspaces
         Workspaces {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -115,15 +115,17 @@ PanelWindow {
             rowHeight: 28
         }
 
-        // CENTER: Time & Date
+        // ===== CENTER: CLICKABLE TIME-DATE CAPSULE =====
         Rectangle {
+            id: timePill
             anchors.centerIn: parent
             width: centerContent.implicitWidth + 30
             height: 28
             radius: 14
             color: bar.nSurface
             border.width: 1
-            border.color: bar.nDim
+            border.color: timeHover.containsMouse ? bar.nRed : bar.nDim
+            Behavior on border.color { ColorAnimation { duration: 150 } }
 
             SystemClock { id: clock; precision: SystemClock.Minutes }
 
@@ -140,6 +142,7 @@ PanelWindow {
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
                 Text {
                     text: "·"
                     color: bar.nRed
@@ -148,6 +151,7 @@ PanelWindow {
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
                 Text {
                     text: Qt.formatDateTime(clock.date, "dd, MMM")
                     color: bar.nWhite
@@ -156,6 +160,14 @@ PanelWindow {
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
+            }
+
+            MouseArea {
+                id: timeHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: bar.togglePanel("cal", bar.modelData)
             }
         }
 
