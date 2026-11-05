@@ -28,10 +28,10 @@ Scope {
     function pad2(n) { return String(n).padStart(2, "0") }
 
     // ───────────────────────── Fonts ─────────────────────────
-    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("fonts/Doto[ROND,wght].ttf") }
-    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("fonts/SpaceGrotesk-Regular.otf") }
-    FontLoader { id: fBoldLoader; source: Qt.resolvedUrl("fonts/SpaceGrotesk-Bold.otf") }
-    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("fonts/SpaceMono-Regular.ttf") }
+    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("../fonts/Doto.ttf") }
+    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Regular.otf") }
+    FontLoader { id: fBoldLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Bold.otf") }
+    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("../fonts/SpaceMono-Regular.ttf") }
 
     readonly property string fDot:  fDotLoader.name  !== "" ? fDotLoader.name  : "monospace"
     readonly property string fSans: fSansLoader.name !== "" ? fSansLoader.name : "sans-serif"
@@ -74,8 +74,8 @@ Scope {
     // Hand-written entries (useStub) / template for custom sources.
     property var stubApps: [
         { kind: "app", name: "Terminal", sub: "foot",    icon: "utilities-terminal",  haystack: "terminal shell",  launch: () => root.sh("foot") },
-        { kind: "app", name: "Browser",  sub: "firefox", icon: "firefox",             haystack: "web internet",    launch: () => root.sh("firefox") },
-        { kind: "app", name: "Files",    sub: "thunar",  icon: "system-file-manager", haystack: "file manager",    launch: () => root.sh("thunar") }
+        { kind: "app", name: "Browser",  sub: "librewolf", icon: "firefox",             haystack: "web internet",    launch: () => root.sh("librewolf") },
+        { kind: "app", name: "Files",    sub: "pcmanfm",  icon: "system-file-manager", haystack: "file manager",    launch: () => root.sh("pcmanfm") }
     ]
 
     // Default backend: desktop entries first, then PATH executables not already covered.
