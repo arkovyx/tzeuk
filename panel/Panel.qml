@@ -20,7 +20,7 @@ PanelWindow {
     WlrLayershell.namespace: "tzeuk-panel"
     WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    FontLoader { id: fDoto; source: "../fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fDoto; source: "../fonts/Doto.ttf" }
     FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
     FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
 
@@ -57,7 +57,6 @@ PanelWindow {
         onClicked: win.closeRequested()
     }
 
-    // Fade animation
     Rectangle {
         anchors.fill: parent
         color: "#000000"
@@ -83,7 +82,6 @@ PanelWindow {
 
         MouseArea { anchors.fill: parent }
 
-        // Subtle dot pattern
         Canvas {
             anchors.fill: parent
             opacity: 0.03
@@ -109,6 +107,7 @@ PanelWindow {
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
 
+                // Close button
                 Rectangle {
                     id: closeBtn
                     anchors.top: parent.top
@@ -158,6 +157,7 @@ PanelWindow {
 
                 // TZEUK wordmark
                 Text {
+                    id: tzeukText
                     anchors.left: parent.left
                     anchors.leftMargin: 24
                     anchors.top: closeBtn.bottom
@@ -170,11 +170,12 @@ PanelWindow {
                     font.letterSpacing: 6
                 }
 
+                // Red line BELOW the TZEUK text (fixed)
                 Rectangle {
                     anchors.left: parent.left
                     anchors.leftMargin: 24
-                    anchors.top: parent.top
-                    anchors.topMargin: 128
+                    anchors.top: tzeukText.bottom
+                    anchors.topMargin: 12
                     width: 32
                     height: 2
                     color: win.nRed
@@ -182,8 +183,8 @@ PanelWindow {
 
                 // Tabs
                 Column {
-                    anchors.top: parent.top
-                    anchors.topMargin: 160
+                    anchors.top: tzeukText.bottom
+                    anchors.topMargin: 48
                     anchors.left: parent.left
                     anchors.right: parent.right
                     spacing: 0
@@ -244,7 +245,6 @@ PanelWindow {
                     }
                 }
 
-                // Footer
                 Text {
                     anchors.bottom: parent.bottom
                     anchors.bottomMargin: 24
@@ -276,15 +276,23 @@ PanelWindow {
                     anchors.margins: 40
 
                     Loader {
+                        id: contentLoader
                         anchors.fill: parent
                         source: {
-                            if (win.activeTab === "home") return "tabs/HomePage.qml"
-                            if (win.activeTab === "audio") return "tabs/AudioPage.qml"
-                            if (win.activeTab === "net") return "tabs/NetPage.qml"
-                            if (win.activeTab === "bt") return "tabs/BtPage.qml"
-                            if (win.activeTab === "sys") return "tabs/SysPage.qml"
-                            if (win.activeTab === "notif") return "tabs/NotifPage.qml"
+                            if (win.activeTab === "home")  return Qt.resolvedUrl("tabs/HomePage.qml")
+                            if (win.activeTab === "audio") return Qt.resolvedUrl("tabs/AudioPage.qml")
+                            if (win.activeTab === "net")   return Qt.resolvedUrl("tabs/NetPage.qml")
+                            if (win.activeTab === "bt")    return Qt.resolvedUrl("tabs/BtPage.qml")
+                            if (win.activeTab === "sys")   return Qt.resolvedUrl("tabs/SysPage.qml")
+                            if (win.activeTab === "notif") return Qt.resolvedUrl("tabs/NotifPage.qml")
                             return ""
+                        }
+                        onStatusChanged: {
+                            if (status === Loader.Error) {
+                                console.error("=== LOADER ERROR === tab:", win.activeTab)
+                            } else if (status === Loader.Ready) {
+                                console.log("=== LOADER READY === tab:", win.activeTab)
+                            }
                         }
                     }
                 }
