@@ -8,7 +8,7 @@ PanelWindow {
     id: win
     property bool suppressed: false
 
-    FontLoader { id: fDoto; source: "../fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fDoto; source: "../fonts/Doto.ttf" }
     FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
     FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
 
