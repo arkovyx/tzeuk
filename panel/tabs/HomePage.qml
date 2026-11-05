@@ -1,15 +1,15 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Bluetooth
-import "../../themes"
 import "../../services"
 
 Item {
     id: page
 
-    FontLoader { id: fDoto; source: "../../fonts/Doto[ROND,wght].ttf" }
+    FontLoader { id: fDoto; source: "../../fonts/Doto.ttf" }
     FontLoader { id: fMono; source: "../../fonts/SpaceMono-Regular.ttf" }
     FontLoader { id: fGrotesk; source: "../../fonts/SpaceGrotesk-Regular.otf" }
 
@@ -27,7 +27,19 @@ Item {
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
     readonly property var ad: Bluetooth.defaultAdapter
 
+    readonly property var player: MediaPlayer.player
+    readonly property bool isPlaying: MediaPlayer.isPlaying
+    readonly property bool hasMedia: MediaPlayer.hasMedia
+
     SystemClock { id: clock; precision: SystemClock.Minutes }
+
+    function fmtTime(s) {
+        if (!s || s <= 0) return "0:00"
+        s = Math.floor(s)
+        var m = Math.floor(s / 60)
+        var r = s % 60
+        return m + ":" + (r < 10 ? "0" : "") + r
+    }
 
     Flickable {
         anchors.fill: parent
@@ -41,7 +53,7 @@ Item {
             width: parent.width
             spacing: 20
 
-            // ===== HEADER: Big Clock + Date =====
+            // ===== HEADER =====
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 24
@@ -60,11 +72,7 @@ Item {
                     Layout.bottomMargin: 22
                     spacing: 6
 
-                    Rectangle {
-                        width: 40
-                        height: 3
-                        color: page.nRed
-                    }
+                    Rectangle { width: 40; height: 3; color: page.nRed }
 
                     Text {
                         text: Qt.formatDateTime(clock.date, "dddd").toUpperCase()
@@ -80,7 +88,7 @@ Item {
                         color: page.nText
                         font.family: page.fSans
                         font.pixelSize: 12
-                        letterSpacing: 2
+                        font.letterSpacing: 2
                         font.bold: true
                     }
                 }
@@ -106,104 +114,386 @@ Item {
             // ===== MEDIA PLAYER =====
             Rectangle {
                 Layout.fillWidth: true
-                visible: MediaPlayer.hasMedia
-                implicitHeight: visible ? 100 : 0
+                visible: page.hasMedia
+                implicitHeight: page.hasMedia ? 210 : 0
                 color: page.nSurface
                 border.width: 1
                 border.color: page.nDim
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 16
+                    anchors.margins: 22
+                    spacing: 28
 
+                    // ===== LEFT: ROTATING VINYL DISC =====
                     Rectangle {
-                        Layout.preferredWidth: 72
-                        Layout.preferredHeight: 72
-                        color: page.nDim
+                        id: disc
+                        Layout.preferredWidth: 160
+                        Layout.preferredHeight: 160
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: width / 2
+                        color: page.nBlack
+                        border.width: 2
+                        border.color: page.nDim
 
-                        Image {
-                            id: artImg
+                        // Hidden circular mask
+                        Rectangle {
+                            id: circleMask
                             anchors.fill: parent
-                            source: MediaPlayer.player ? MediaPlayer.player.trackArtUrl : ""
-                            fillMode: Image.PreserveAspectCrop
-                            visible: status === Image.Ready
-                            asynchronous: true
+                            radius: width / 2
+                            color: "white"
+                            visible: false
+                            layer.enabled: true
                         }
 
-                        Text {
-                            anchors.centerIn: parent
-                            visible: artImg.status !== Image.Ready
-                            text: "♪"
-                            color: page.nText
-                            font.family: page.fSans
-                            font.pixelSize: 32
+                        // Rotating content — reads angle from the persistent singleton
+                        Item {
+                            id: rotator
+                            anchors.fill: parent
+                            rotation: MediaPlayer.discAngle
+                            transformOrigin: Item.Center
+
+                            // Fallback bg
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: width / 2
+                                color: page.nDim
+                                visible: coverSource.status !== Image.Ready
+                                z: 0
+                            }
+
+                            // Hidden image source
+                            Image {
+                                id: coverSource
+                                anchors.fill: parent
+                                source: page.player ? (page.player.trackArtUrl || "") : ""
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                visible: false
+                                layer.enabled: true
+                                z: 1
+                            }
+
+                            // Circular-masked cover
+                            MultiEffect {
+                                anchors.fill: parent
+                                source: coverSource
+                                maskEnabled: coverSource.status === Image.Ready
+                                maskSource: circleMask
+                                z: 2
+                            }
+
+                            // Vinyl grooves
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: parent.width - 30
+                                height: width
+                                radius: width / 2
+                                color: "transparent"
+                                border.width: 1
+                                border.color: "#ffffff"
+                                opacity: 0.1
+                                z: 3
+                            }
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: parent.width - 60
+                                height: width
+                                radius: width / 2
+                                color: "transparent"
+                                border.width: 1
+                                border.color: "#ffffff"
+                                opacity: 0.1
+                                z: 3
+                            }
+
+                            // Center label with DOTTED music note (eighth-note dot-matrix)
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 56
+                                height: 56
+                                radius: 28
+                                color: page.nBlack
+                                border.width: 2
+                                border.color: page.nRed
+                                z: 4
+
+                                Canvas {
+                                    id: noteCanvas
+                                    anchors.centerIn: parent
+                                    width: 40
+                                    height: 44
+
+                                    Component.onCompleted: requestPaint()
+
+                                    onPaint: {
+                                        var ctx = getContext("2d")
+                                        ctx.clearRect(0, 0, width, height)
+                                        ctx.fillStyle = page.nRed
+
+                                        // 10 x 14 dot-matrix pattern of an eighth note ♪
+                                        var pattern = [
+                                            [0,0,0,0,0,0,1,1,1,0],  //  0 flag top
+                                            [0,0,0,0,0,0,1,1,1,1],  //  1 flag extends
+                                            [0,0,0,0,0,0,1,0,1,1],  //  2 flag taper
+                                            [0,0,0,0,0,0,1,0,0,0],  //  3 stem
+                                            [0,0,0,0,0,0,1,0,0,0],  //  4 stem
+                                            [0,0,0,0,0,0,1,0,0,0],  //  5 stem
+                                            [0,0,0,0,0,0,1,0,0,0],  //  6 stem
+                                            [0,0,0,0,0,0,1,0,0,0],  //  7 stem
+                                            [0,0,0,0,0,0,1,0,0,0],  //  8 stem
+                                            [0,0,0,0,1,1,1,0,0,0],  //  9 head top
+                                            [0,0,0,1,1,1,1,0,0,0],  // 10 head
+                                            [0,0,0,1,1,1,1,0,0,0],  // 11 head
+                                            [0,0,0,0,1,1,1,0,0,0],  // 12 head bottom
+                                            [0,0,0,0,0,0,0,0,0,0]   // 13 empty
+                                        ]
+
+                                        var rows = pattern.length
+                                        var cols = pattern[0].length
+                                        var cellW = width / cols
+                                        var cellH = height / rows
+                                        var dotR = Math.min(cellW, cellH) * 0.42
+
+                                        for (var j = 0; j < rows; j++) {
+                                            for (var i = 0; i < cols; i++) {
+                                                if (pattern[j][i] === 1) {
+                                                    ctx.beginPath()
+                                                    ctx.arc(
+                                                        i * cellW + cellW / 2,
+                                                        j * cellH + cellH / 2,
+                                                        dotR, 0, Math.PI * 2
+                                                    )
+                                                    ctx.fill()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Spindle hole
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: page.nSurface
+                                z: 5
+                            }
                         }
                     }
 
+                    // ===== RIGHT: TRACK INFO + PROGRESS + CONTROLS =====
                     ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignVCenter
-                        spacing: 4
+                        Layout.fillHeight: true
+                        spacing: 12
 
-                        Text {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: MediaPlayer.player ? (MediaPlayer.player.trackTitle || "Unknown") : ""
-                            color: page.nWhite
-                            font.family: page.fSans
-                            font.pixelSize: 16
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
+                            spacing: 5
 
-                        Text {
-                            Layout.fillWidth: true
-                            text: MediaPlayer.player ? (MediaPlayer.player.trackArtist || "") : ""
-                            color: page.nText
-                            font.family: page.fSans
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
-                        }
+                            Row {
+                                spacing: 8
 
-                        RowLayout {
-                            spacing: 20
-                            Layout.topMargin: 6
+                                Rectangle {
+                                    width: 6
+                                    height: 6
+                                    radius: 3
+                                    color: page.nRed
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    SequentialAnimation on opacity {
+                                        running: page.isPlaying
+                                        loops: Animation.Infinite
+                                        NumberAnimation { to: 0.3; duration: 700 }
+                                        NumberAnimation { to: 1.0; duration: 700 }
+                                    }
+                                }
 
-                            Text {
-                                text: "◀◀"
-                                color: page.nWhite
-                                font.pixelSize: 14
-                                MouseArea {
-                                    anchors.fill: parent
-                                    anchors.margins: -10
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (MediaPlayer.player?.canGoPrevious) MediaPlayer.player.previous()
+                                Text {
+                                    text: page.isPlaying ? "NOW PLAYING" : "PAUSED"
+                                    color: page.nRed
+                                    font.family: page.fSans
+                                    font.pixelSize: 10
+                                    font.letterSpacing: 4
+                                    font.bold: true
                                 }
                             }
 
                             Text {
-                                text: MediaPlayer.player?.isPlaying ? "❚❚" : "▶"
-                                color: page.nRed
+                                Layout.fillWidth: true
+                                text: (page.player ? (page.player.trackTitle || "UNKNOWN TRACK") : "UNKNOWN TRACK").toUpperCase()
+                                color: page.nWhite
+                                font.family: page.fSans
                                 font.pixelSize: 18
-                                MouseArea {
-                                    anchors.fill: parent
-                                    anchors.margins: -10
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (MediaPlayer.player?.canTogglePlaying) MediaPlayer.player.togglePlaying()
-                                }
+                                font.bold: true
+                                elide: Text.ElideRight
                             }
 
                             Text {
-                                text: "▶▶"
-                                color: page.nWhite
-                                font.pixelSize: 14
+                                Layout.fillWidth: true
+                                text: (page.player ? (page.player.trackArtist || "UNKNOWN ARTIST") : "UNKNOWN ARTIST").toUpperCase()
+                                color: page.nText
+                                font.family: page.fMonoStr
+                                font.pixelSize: 11
+                                font.letterSpacing: 2
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        Item { Layout.fillHeight: true }
+
+                        // Progress bar — reads from persistent MediaPlayer singleton
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 5
+                            visible: MediaPlayer.length > 0
+
+                            readonly property real trackLength: MediaPlayer.length
+                            readonly property real trackPos: MediaPlayer.position
+                            readonly property real progress: trackLength > 0 ? Math.min(1, Math.max(0, trackPos / trackLength)) : 0
+
+                            Rectangle {
+                                id: progTrack
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 8
+                                color: page.nBlack
+                                border.width: 1
+                                border.color: page.nDim
+
+                                Rectangle {
+                                    width: parent.width * parent.parent.progress
+                                    height: parent.height
+                                    color: page.nWhite
+                                }
+
+                                Rectangle {
+                                    x: Math.max(0, Math.min(progTrack.width - width, progTrack.width * progTrack.parent.progress - width / 2))
+                                    width: 3
+                                    height: parent.height + 6
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: page.nRed
+                                }
+
                                 MouseArea {
                                     anchors.fill: parent
-                                    anchors.margins: -10
+                                    anchors.topMargin: -10
+                                    anchors.bottomMargin: -10
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (MediaPlayer.player?.canGoNext) MediaPlayer.player.next()
+                                    onClicked: (m) => {
+                                        if (page.player && page.player.length > 0) {
+                                            var newPos = (m.x / progTrack.width) * page.player.length
+                                            page.player.position = newPos
+                                            MediaPlayer.position = newPos
+                                        }
+                                    }
                                 }
                             }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    text: page.fmtTime(progTrack.parent.trackPos)
+                                    color: page.nText
+                                    font.family: page.fDot
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Text {
+                                    text: page.fmtTime(progTrack.parent.trackLength)
+                                    color: page.nText
+                                    font.family: page.fDot
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
+                            }
+                        }
+
+                        // Controls
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Rectangle {
+                                Layout.preferredWidth: 48
+                                Layout.preferredHeight: 40
+                                color: prevHover.containsMouse ? page.nDim : "transparent"
+                                border.width: 1
+                                border.color: page.nDim
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "◀◀"
+                                    color: page.nWhite
+                                    font.pixelSize: 13
+                                }
+
+                                MouseArea {
+                                    id: prevHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (page.player && page.player.canGoPrevious) page.player.previous()
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: 72
+                                Layout.preferredHeight: 44
+                                color: playHover.containsMouse ? page.nRed : page.nWhite
+                                border.width: 1
+                                border.color: page.nWhite
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: page.isPlaying ? "❚❚" : "▶"
+                                    color: playHover.containsMouse ? page.nWhite : page.nBlack
+                                    font.pixelSize: 17
+                                    font.bold: true
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                }
+
+                                MouseArea {
+                                    id: playHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (page.player && page.player.canTogglePlaying) page.player.togglePlaying()
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: 48
+                                Layout.preferredHeight: 40
+                                color: nextHover.containsMouse ? page.nDim : "transparent"
+                                border.width: 1
+                                border.color: page.nDim
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "▶▶"
+                                    color: page.nWhite
+                                    font.pixelSize: 13
+                                }
+
+                                MouseArea {
+                                    id: nextHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (page.player && page.player.canGoNext) page.player.next()
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
                         }
                     }
                 }
@@ -366,7 +656,6 @@ Item {
                     delegate: Rectangle {
                         id: pwrBtn
                         required property var modelData
-                        required property int index
 
                         Layout.fillWidth: true
                         implicitHeight: 80
