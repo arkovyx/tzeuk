@@ -11,11 +11,10 @@ PanelWindow {
     signal closeRequested()
 
     visible: opened
-    // Full-width strip below the bar so we can center & detect outside clicks
     anchors { top: true; left: true; right: true }
-    margins { top: 56 }
-    implicitHeight: 440
-    exclusiveZone: 0
+    exclusionMode: ExclusionMode.Ignore
+    margins { top: 52 }
+    implicitHeight: 490
     color: "transparent"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "tzeuk-calendar"
@@ -74,14 +73,7 @@ PanelWindow {
         month = ((m % 12) + 12) % 12
     }
 
-    function isoWeek(d) {
-        var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-        var day = t.getUTCDay() || 7
-        t.setUTCDate(t.getUTCDate() + 4 - day)
-        var y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
-        return Math.ceil(((t - y0) / 86400000 + 1) / 7)
-    }
-
+    // 42 days starting from the Monday on/before the 1st
     readonly property var days: {
         var first = new Date(year, month, 1)
         var start = new Date(year, month, 1 - ((first.getDay() + 6) % 7))
@@ -93,29 +85,25 @@ PanelWindow {
 
     readonly property var now: sysClock.date
 
-    // ==== Full-width transparent backdrop (click outside to close) ====
     MouseArea {
         anchors.fill: parent
         onClicked: win.closeRequested()
     }
 
-    // ==== Centered calendar ====
+    // ===== Calendar card =====
     Rectangle {
         id: calendar
         anchors.horizontalCenter: parent.horizontalCenter
         y: 0
-        width: 360
-        height: 430
-        radius: 24
+        width: 380
+        height: 460
         color: win.nBlack
         border.width: 1
         border.color: win.nDim
+        radius: 24
 
-        // Scale-in on open
-        scale: win.opened ? 1.0 : 0.92
         opacity: win.opened ? 1.0 : 0.0
-        Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutQuint } }
-        Behavior on opacity { NumberAnimation { duration: 160 } }
+        Behavior on opacity { NumberAnimation { duration: 180 } }
 
         focus: true
         Keys.onEscapePressed: win.closeRequested()
@@ -123,106 +111,113 @@ PanelWindow {
         Keys.onRightPressed: win.shift(1)
         Keys.onSpacePressed: win.today()
 
-        // Backdrop — absorbs clicks inside the calendar so the outer MouseArea
-        // (which closes the popup) doesn't fire when clicking calendar elements
         MouseArea { anchors.fill: parent }
-
-        // Wheel to navigate months
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
             onWheel: w => win.shift(w.angleDelta.y > 0 ? -1 : 1)
         }
 
-        // Subtle dot texture
-        Canvas {
-            anchors.fill: parent
-            opacity: 0.03
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.fillStyle = "white"
-                for (var x = 0; x < width; x += 20) {
-                    for (var y = 0; y < height; y += 20) {
-                        ctx.beginPath()
-                        ctx.arc(x, y, 1, 0, Math.PI * 2)
-                        ctx.fill()
-                    }
-                }
-            }
-        }
-
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 22
-            spacing: 14
+            anchors.topMargin: 34
+            anchors.bottomMargin: 18
+            anchors.leftMargin: 24
+            anchors.rightMargin: 24
+            spacing: 12
 
-            // ===== Big dot-matrix clock =====
-            Text {
+            // ===== Clock — HH:mm:ss all same size =====
+            Row {
                 Layout.fillWidth: true
-                text: Qt.formatDateTime(win.now, "HH:mm")
-                color: win.nWhite
-                font.family: win.fDot
-                font.pixelSize: 48
-                font.bold: true
-                font.letterSpacing: 2
+                Layout.preferredHeight: 62
+                spacing: 0
+
+                Text {
+                    text: Qt.formatDateTime(win.now, "HH:mm")
+                    color: win.nWhite
+                    font.family: win.fDot
+                    font.pixelSize: 56
+                    font.bold: true
+                    anchors.bottom: parent.bottom
+                }
+                Text {
+                    text: ":" + Qt.formatDateTime(win.now, "ss")
+                    color: win.nRed
+                    font.family: win.fDot
+                    font.pixelSize: 56
+                    font.bold: true
+                    anchors.bottom: parent.bottom
+                }
             }
 
-            // ===== Weekday · date line =====
+            // ===== Date line =====
             Row {
                 spacing: 10
                 Rectangle {
-                    width: 20
+                    width: 24
                     height: 3
                     radius: 1.5
                     color: win.nRed
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text: Qt.formatDateTime(win.now, "dddd, d MMMM").toUpperCase()
+                    text: Qt.formatDateTime(win.now, "dddd").toUpperCase()
                     color: win.nWhite
                     font.family: win.fSans
                     font.pixelSize: 11
                     font.bold: true
-                    font.letterSpacing: 2
+                    font.letterSpacing: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "·"
+                    color: win.nRed
+                    font.pixelSize: 14
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: Qt.formatDateTime(win.now, "dd MMM yyyy").toUpperCase()
+                    color: win.nText
+                    font.family: win.fSans
+                    font.pixelSize: 11
+                    font.letterSpacing: 3
+                    font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
 
-            // ===== Red pill divider =====
+            // ===== Red divider =====
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 3
-                radius: 1.5
+                Layout.preferredHeight: 2
+                radius: 1
                 color: win.nRed
-                opacity: 0.35
-                Layout.topMargin: 2
-                Layout.bottomMargin: 2
+                opacity: 0.4
             }
 
-            // ===== Month nav =====
+            // ===== Month navigation =====
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 8
 
-                // Prev month — circular button
                 Rectangle {
-                    width: 32
-                    height: 32
-                    radius: 16
+                    width: 34
+                    height: 34
+                    radius: 17
                     color: prevHover.containsMouse ? win.nRed : win.nSurface
                     border.width: 1
                     border.color: prevHover.containsMouse ? win.nRed : win.nDim
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on border.color { ColorAnimation { duration: 150 } }
-
                     Text {
                         anchors.centerIn: parent
                         text: "‹"
-                        color: prevHover.containsMouse ? win.nWhite : win.nWhite
-                        font.pixelSize: 20
+                        color: win.nWhite
+                        font.pixelSize: 22
                         font.bold: true
+                        anchors.verticalCenterOffset: -1
                     }
-
                     MouseArea {
                         id: prevHover
                         anchors.fill: parent
@@ -232,16 +227,14 @@ PanelWindow {
                     }
                 }
 
-                // Month label — pill shape
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 32
-                    radius: 16
+                    height: 34
+                    radius: 17
                     color: monthHover.containsMouse ? win.nSurface : "transparent"
                     border.width: 1
                     border.color: win.nDim
                     Behavior on color { ColorAnimation { duration: 150 } }
-
                     Text {
                         anchors.centerIn: parent
                         text: Qt.formatDate(new Date(win.year, win.month, 1), "MMMM yyyy").toUpperCase()
@@ -249,9 +242,8 @@ PanelWindow {
                         font.family: win.fSans
                         font.pixelSize: 12
                         font.bold: true
-                        font.letterSpacing: 3
+                        font.letterSpacing: 4
                     }
-
                     MouseArea {
                         id: monthHover
                         anchors.fill: parent
@@ -261,25 +253,23 @@ PanelWindow {
                     }
                 }
 
-                // Next month — circular button
                 Rectangle {
-                    width: 32
-                    height: 32
-                    radius: 16
+                    width: 34
+                    height: 34
+                    radius: 17
                     color: nextHover.containsMouse ? win.nRed : win.nSurface
                     border.width: 1
                     border.color: nextHover.containsMouse ? win.nRed : win.nDim
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on border.color { ColorAnimation { duration: 150 } }
-
                     Text {
                         anchors.centerIn: parent
                         text: "›"
                         color: win.nWhite
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         font.bold: true
+                        anchors.verticalCenterOffset: -1
                     }
-
                     MouseArea {
                         id: nextHover
                         anchors.fill: parent
@@ -290,123 +280,86 @@ PanelWindow {
                 }
             }
 
-            // ===== Weekday header =====
+            // ===== Weekday header (7 cols, aligned with dates) =====
             GridLayout {
                 Layout.fillWidth: true
-                columns: 8
-                columnSpacing: 2
-                rowSpacing: 4
+                columns: 7
+                columnSpacing: 0
+                rowSpacing: 0
 
                 Repeater {
-                    model: ["WK", "M", "T", "W", "T", "F", "S", "S"]
-                    delegate: Text {
+                    model: ["M", "T", "W", "T", "F", "S", "S"]
+                    delegate: Item {
                         required property var modelData
                         required property int index
                         Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
-                        text: modelData
-                        color: index === 0 ? win.nText
-                             : index >= 6 ? win.nRed : win.nText
-                        font.family: win.fSans
-                        font.pixelSize: 10
-                        font.bold: true
-                        font.letterSpacing: 1
+                        Layout.preferredHeight: 24
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData
+                            color: index >= 5 ? win.nRed : win.nText
+                            font.family: win.fSans
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.letterSpacing: 1
+                        }
                     }
                 }
             }
 
-            // ===== Days grid =====
+            // ===== Days grid (7 cols) =====
             GridLayout {
                 Layout.fillWidth: true
-                columns: 8
-                columnSpacing: 2
+                columns: 7
+                columnSpacing: 0
                 rowSpacing: 2
 
                 Repeater {
-                    model: 48
+                    model: 42
                     delegate: Item {
                         id: cellWrap
                         required property int index
-                        readonly property bool isWeek: index % 8 === 0
-                        readonly property var d: win.days[Math.floor(index / 8) * 7 + Math.max(0, (index % 8) - 1)]
+                        readonly property var d: win.days[index]
                         readonly property bool inMonth: d.getMonth() === win.month
-                        readonly property bool isToday: !isWeek && d.toDateString() === win.now.toDateString()
-                        readonly property bool weekend: (index % 8) >= 6
+                        readonly property bool isToday: d.toDateString() === win.now.toDateString()
+                        readonly property bool weekend: (index % 7) >= 5
 
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 30
+                        Layout.preferredHeight: 34
 
-                        // Rounded pill background
                         Rectangle {
                             anchors.fill: parent
-                            anchors.margins: 1
+                            anchors.margins: 2
                             radius: 15
                             color: cellWrap.isToday ? win.nRed
-                                 : (cellHover.containsMouse && !cellWrap.isWeek ? win.nSurface : "transparent")
-                            border.width: 0
+                                 : (cellHover.containsMouse ? win.nSurface : "transparent")
                             Behavior on color { ColorAnimation { duration: 150 } }
-                        }
-
-                        // Red dot under today
-                        Rectangle {
-                            visible: cellWrap.isToday
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 2
-                            width: 4
-                            height: 4
-                            radius: 2
-                            color: win.nWhite
                         }
 
                         Text {
                             anchors.centerIn: parent
-                            text: cellWrap.isWeek ? win.isoWeek(cellWrap.d) : cellWrap.d.getDate()
+                            text: cellWrap.d.getDate()
                             color: cellWrap.isToday ? win.nWhite
-                                 : cellWrap.isWeek ? win.nText
                                  : !cellWrap.inMonth ? win.nText
                                  : cellWrap.weekend ? win.nRed : win.nWhite
-                            opacity: cellWrap.inMonth || cellWrap.isWeek ? 1.0 : 0.35
-                            font.family: cellWrap.isWeek ? win.fMonoStr : win.fSans
-                            font.pixelSize: cellWrap.isWeek ? 9 : 12
+                            opacity: cellWrap.inMonth ? 1.0 : 0.35
+                            font.family: win.fSans
+                            font.pixelSize: 13
                             font.bold: cellWrap.isToday
                         }
 
                         MouseArea {
                             id: cellHover
                             anchors.fill: parent
-                            hoverEnabled: !cellWrap.isWeek
-                            cursorShape: cellWrap.isWeek ? Qt.ArrowCursor : Qt.PointingHandCursor
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
                         }
                     }
                 }
             }
 
             Item { Layout.fillHeight: true }
-
-            // ===== Footer hint =====
-            RowLayout {
-                Layout.fillWidth: true
-
-                Text {
-                    text: "‹ ›  NAVIGATE   ·   ESC  CLOSE"
-                    color: win.nText
-                    font.family: win.fMonoStr
-                    font.pixelSize: 9
-                    font.letterSpacing: 1
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Text {
-                    text: "W" + win.isoWeek(win.now)
-                    color: win.nRed
-                    font.family: win.fMonoStr
-                    font.pixelSize: 10
-                    font.bold: true
-                    font.letterSpacing: 1
-                }
-            }
         }
     }
 }
