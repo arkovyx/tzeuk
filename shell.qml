@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "bar"
@@ -21,9 +22,21 @@ ShellRoot {
         objects: Pipewire.nodes.values
     }
 
+    // Dynamically returns the screen that currently has focus in Hyprland
     function focusedScreen() {
-        var s = Quickshell.screens
-        return s.length > 0 ? s[0] : null
+        var screens = Quickshell.screens
+        if (screens.length === 0) return null
+
+        var focused = Hyprland.focusedMonitor
+        if (focused && focused.name) {
+            for (var i = 0; i < screens.length; i++) {
+                if (screens[i].name === focused.name) {
+                    return screens[i]
+                }
+            }
+        }
+        // Fallback to first screen if hyprland focused monitor isn't found
+        return screens[0]
     }
 
     Variants {
@@ -53,13 +66,13 @@ ShellRoot {
         activeTab: root.activeTab
         onTabChanged: function(name) { root.activeTab = name }
         onCloseRequested: root.panelOpen = false
-        screen: root.panelScreen !== null ? root.panelScreen : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
+        screen: root.panelScreen !== null ? root.panelScreen : root.focusedScreen()
     }
 
     CalendarPopup {
         opened: root.calOpen
         onCloseRequested: root.calOpen = false
-        screen: root.calScreen !== null ? root.calScreen : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
+        screen: root.calScreen !== null ? root.calScreen : root.focusedScreen()
     }
 
     Variants {
@@ -75,7 +88,7 @@ ShellRoot {
 
     CharPicker {
         opened: root.glyphsOpen
-        screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+        screen: root.focusedScreen()
         onCloseRequested: root.glyphsOpen = false
     }
 
