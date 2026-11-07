@@ -117,4 +117,42 @@ Singleton {
         if (m) for (var i = 0; i < l.length; i++) if (l[i].name === m.name) return l[i]
         return l.length ? l[0] : null
     }
+
+    // ============================================
+    // GLYPH PICKER ADDITIONS
+    // ============================================
+    // Surfaces (solid, card is opaque for Nothing)
+    readonly property color s1: "#0a0a0a"
+    readonly property color s2: "#171717"
+    readonly property color s3: "#252525"
+    readonly property real  panelAlpha: 1.0
+
+    // Scrim (dimmed backdrop)
+    readonly property color scrim: "#000000b3"
+
+    // Secondary text
+    readonly property color grey: "#b0b0b0"
+
+    // Typography aliases (CharPicker calls Theme.ui / Theme.nf)
+    readonly property string ui: sans
+    readonly property string nf: font
+
+    // Motion aliases
+    readonly property int t: move
+    readonly property var glide: settle
+
+    // Alpha helper (aurora name)
+    function fade(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+
+    // Picker icons — swap any that don't match your taste
+    readonly property string iGrid:      cp(0xF0558)   // view-grid
+    readonly property string iHistory:   cp(0xF02DA)   // history
+    readonly property string iEmoji:     cp(0xF0785)   // emoticon-outline
+    readonly property string iFontGlyph: cp(0xF06D6)   // format-font
+    readonly property string iSigma:     cp(0xF0AA0)   // math-related
+    readonly property string iKaomoji:   cp(0xF0BDB)   // emoticon
+    readonly property string iFancy:     cp(0xF0280)   // format-text
+    readonly property string iSearch:    cp(0xF0349)   // magnify
+    readonly property string iClose:     cp(0xF0156)   // close
+    readonly property string iBuffer:    cp(0xF018F)   // content-copy
 }
