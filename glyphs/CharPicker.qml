@@ -9,29 +9,31 @@ PanelWindow {
     property bool opened: false
     signal closeRequested()
 
-    // ═══════════════════ Palette (inline, no Theme) ═══════════════════
-    readonly property color cFg:     "#ffffff"
-    readonly property color cGrey:   "#b0b0b0"
-    readonly property color cMute:   "#707070"
-    readonly property color cDim:    "#4a4a4a"
-    readonly property color cLive:   "#d71921"
-    readonly property color cFill:   "#ffffff"
-    readonly property color cFillFg: "#000000"
-    readonly property color cS1:     "#0a0a0a"
-    readonly property color cS2:     "#171717"
-    readonly property color cS3:     "#252525"
-    readonly property color cScrim:  "#000000b3"
-    readonly property string cUi:    "Space Grotesk"
-    readonly property string cNf:    "JetBrainsMono Nerd Font"
-    readonly property int cT: 260
-    readonly property var cGlide: [0.22, 1.0, 0.36, 1.0]
-    function fade(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+    // ═══════════════ Palette ═══════════════
+    readonly property color cBlack: "#000000"
+    readonly property color cWhite: "#FFFFFF"
+    readonly property color cRed:   "#D71921"
+    readonly property color cS1:    "#0a0a0a"
+    readonly property color cS2:    "#171717"
+    readonly property color cS3:    "#252525"
+    function dim(a) { return Qt.rgba(1, 1, 1, a) }
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
-    readonly property string iSearch: cp(0xF0349)
+    function pad2(n) { return String(n).padStart(2, "0") }
+
     readonly property string iClose:  cp(0xF0156)
     readonly property string iBuffer: cp(0xF018F)
 
-    // ═══════════════════ Data state ═══════════════════
+    // ═══════════════ Fonts ═══════════════
+    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("../fonts/Doto.ttf") }
+    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Regular.otf") }
+    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("../fonts/SpaceMono-Regular.ttf") }
+    readonly property string fDot:  fDotLoader.name  !== "" ? fDotLoader.name  : "monospace"
+    readonly property string fSans: fSansLoader.name !== "" ? fSansLoader.name : "sans-serif"
+    readonly property string fMono: fMonoLoader.name !== "" ? fMonoLoader.name : "monospace"
+    readonly property string fNf:   "JetBrainsMono Nerd Font"
+    readonly property string fEmoji:"Noto Color Emoji"
+
+    // ═══════════════ Data ═══════════════
     property var sets: []
     property var items: []
     property var byChar: ({})
@@ -41,7 +43,15 @@ PanelWindow {
     property bool hasWtype: false
     property int tone: 0
 
-    // ═══════════════════ Load chars.json ═══════════════════
+    // ═══════════════ UI state ═══════════════
+    property int sec: 0
+    property int grp: -1
+    property string buffer: ""
+    property var results: []
+    property var hovered: null
+    property string mode: "insert"
+    property string pending: ""
+
     FileView {
         id: dataFile
         path: Quickshell.env("HOME") + "/.config/quickshell/tzeuk/chars.json"
@@ -52,12 +62,12 @@ PanelWindow {
                 var out = [], by = {}
                 for (var i = 0; i < d.items.length; i++) {
                     var r = d.items[i]
-                    var grp = (d.sets[r[3]] && d.sets[r[3]].groups[r[4]]) || ""
+                    var grpName = (d.sets[r[3]] && d.sets[r[3]].groups[r[4]]) || ""
                     var it = {
                         i: i, c: r[0], n: r[1], k: r[2] || "",
                         s: r[3], g: r[4], t: r[5],
                         nl: r[1].toLowerCase(),
-                        kl: " " + (r[2] || "").toLowerCase() + " " + grp.toLowerCase() + " "
+                        kl: " " + (r[2] || "").toLowerCase() + " " + grpName.toLowerCase() + " "
                     }
                     out.push(it)
                     if (by[it.c] === undefined) by[it.c] = it
@@ -78,7 +88,6 @@ PanelWindow {
         }
     }
 
-    // Persist counts + tone
     FileView {
         id: stateFile
         path: Quickshell.env("HOME") + "/.cache/tzeuk/state.json"
@@ -86,12 +95,9 @@ PanelWindow {
         onLoaded: {
             try {
                 var s = JSON.parse(text())
-                win.tone   = (typeof s.charTone === "number") ? s.charTone : 0
-                win.counts = s.counts || ({})
-            } catch (e) {
-                win.tone = 0
-                win.counts = ({})
-            }
+                if (typeof s.charTone === "number") win.tone = s.charTone
+                if (s.counts && typeof s.counts === "object") win.counts = s.counts
+            } catch (e) {}
         }
     }
     function saveState() {
@@ -105,21 +111,16 @@ PanelWindow {
         onExited: code => win.hasWtype = code === 0
     }
 
-    // ═══════════════════ Sections ═══════════════════
+    // ═══════════════ Sections ═══════════════
     readonly property var sections: [
-        { id: "all",    label: "all",     sets: ["emoji", "nerd", "sym"] },
-        { id: "recent", label: "recent",  sets: ["emoji", "nerd", "sym"] },
+        { id: "all",    label: "all",     sets: ["emoji", "nerd", "sym", "kao"] },
+        { id: "recent", label: "recent",  sets: ["emoji", "nerd", "sym", "kao"] },
         { id: "emoji",  label: "emoji",   sets: ["emoji"] },
         { id: "nerd",   label: "nerd",    sets: ["nerd"] },
         { id: "sym",    label: "symbols", sets: ["sym"] },
         { id: "kao",    label: "kaomoji", sets: ["kao"] },
         { id: "fancy",  label: "fancy",   sets: [] }
     ]
-    property int sec: 0
-    property int grp: -1
-    property string buffer: ""
-    property var results: []
-    property var hovered: null
     readonly property var section: sections[sec]
     readonly property bool listMode: section.id === "kao" || section.id === "fancy"
     readonly property var groups: {
@@ -127,11 +128,12 @@ PanelWindow {
         var i = setIndex(section.sets[0])
         return i >= 0 ? sets[i].groups : []
     }
-    readonly property var view: listMode ? list : grid
     readonly property var current: hovered ? hovered
-        : (results.length && view.currentIndex >= 0 ? results[view.currentIndex] : null)
+        : (results.length && (listMode ? list.currentIndex : grid.currentIndex) >= 0
+           ? results[listMode ? list.currentIndex : grid.currentIndex]
+           : null)
 
-    // ═══════════════════ Lookup helpers ═══════════════════
+    // ═══════════════ Helpers ═══════════════
     function setIndex(id) {
         for (var i = 0; i < sets.length; i++) if (sets[i].id === id) return i
         return -1
@@ -147,6 +149,13 @@ PanelWindow {
         }
         return out.join(" ")
     }
+    function fontOf(it) {
+        if (!it || it.s === undefined || !sets[it.s]) return fSans
+        var sid = sets[it.s].id
+        if (sid === "emoji") return fEmoji
+        if (sid === "kao")   return fSans
+        return fNf
+    }
 
     function scoreLow(haystack, needle) {
         if (!needle || !haystack) return 0
@@ -157,13 +166,11 @@ PanelWindow {
                 if (hi === lastMatch + 1) score += 30
                 else if (hi === 0 || h[hi - 1] === " ") score += 20
                 else score += 10
-                lastMatch = hi
-                ni++
+                lastMatch = hi; ni++
             }
             hi++
         }
-        if (ni < n.length) return 0
-        return 100 + score
+        return ni < n.length ? 0 : 100 + score
     }
 
     function search(q, sl, group) {
@@ -194,14 +201,15 @@ PanelWindow {
                 for (j = 0; j < words.length; j++) {
                     var w = words[j]
                     var s = scoreLow(it.nl, w)
-                    if (s < 300 && s < 99) s = 0
-                    if (s < 450 && it.kl.indexOf(" " + w) >= 0) s = 450
-                    else if (s < 150 && w.length > 1 && it.kl.indexOf(w) >= 0) s = 150
+                    if (s === 0 && it.nl.indexOf(w) >= 0) s = 80
                     if (s === 0) { sc = 0; break }
+                    if (it.kl.indexOf(" " + w) >= 0) s = 450
+                    else if (w.length > 1 && it.kl.indexOf(w) >= 0) s = 150
                     sc += s
                 }
                 if (sc === 0) continue
                 if (it.nl === q) sc += 800
+                else if (it.nl.startsWith(q)) sc += 400
                 sc -= it.nl.length * 0.5
                 if (sets[it.s].id === "emoji") sc += 40
             }
@@ -214,27 +222,23 @@ PanelWindow {
         for (i = 0; i < scored.length; i++) out.push(scored[i].it)
         return out
     }
-
     function recent(limit) {
         var l = []
         for (var c in counts) {
             var it = byChar[c]
-            if (it && sets[it.s] && sets[it.s].id !== "kao")
-                l.push({ it: it, t: counts[c].t })
+            if (it && sets[it.s]) l.push({ it: it, t: counts[c].t })
         }
         l.sort((a, b) => b.t - a.t)
         var out = []
         for (var i = 0; i < l.length && i < limit; i++) out.push(l[i].it)
         return out
     }
-
     function byUse(list) {
         var u = [], rest = []
         for (var i = 0; i < list.length; i++) (counts[list[i].c] ? u : rest).push(list[i])
         u.sort((a, b) => counts[b.c].n - counts[a.c].n)
         return u.concat(rest)
     }
-
     function bump(c) {
         var n = {}
         for (var k in counts) n[k] = counts[k]
@@ -243,20 +247,14 @@ PanelWindow {
         saveState()
     }
 
-    // ═══════════════════ Fancy text ═══════════════════
+    // ═══════════════ Fancy text ═══════════════
     readonly property var mathStyles: [
-        ["bold", 0x1D400, 0x1D41A, 0x1D7CE],
-        ["italic", 0x1D434, 0x1D44E, 0],
-        ["bold italic", 0x1D468, 0x1D482, 0],
-        ["script", 0x1D49C, 0x1D4B6, 0],
-        ["bold script", 0x1D4D0, 0x1D4EA, 0],
-        ["fraktur", 0x1D504, 0x1D51E, 0],
-        ["bold fraktur", 0x1D56C, 0x1D586, 0],
-        ["double-struck", 0x1D538, 0x1D552, 0x1D7D8],
-        ["sans", 0x1D5A0, 0x1D5BA, 0x1D7E2],
-        ["sans bold", 0x1D5D4, 0x1D5EE, 0x1D7EC],
-        ["sans italic", 0x1D608, 0x1D622, 0],
-        ["monospace", 0x1D670, 0x1D68A, 0x1D7F6]
+        ["bold", 0x1D400, 0x1D41A, 0x1D7CE], ["italic", 0x1D434, 0x1D44E, 0],
+        ["bold italic", 0x1D468, 0x1D482, 0], ["script", 0x1D49C, 0x1D4B6, 0],
+        ["bold script", 0x1D4D0, 0x1D4EA, 0], ["fraktur", 0x1D504, 0x1D51E, 0],
+        ["bold fraktur", 0x1D56C, 0x1D586, 0], ["double-struck", 0x1D538, 0x1D552, 0x1D7D8],
+        ["sans", 0x1D5A0, 0x1D5BA, 0x1D7E2], ["sans bold", 0x1D5D4, 0x1D5EE, 0x1D7EC],
+        ["sans italic", 0x1D608, 0x1D622, 0], ["monospace", 0x1D670, 0x1D68A, 0x1D7F6]
     ]
     readonly property var holes: ({
         "italic": { h: 0x210E },
@@ -274,7 +272,6 @@ PanelWindow {
         "?": "¿", "!": "¡", "(": ")", ")": "(", "[": "]", "]": "[", "{": "}",
         "}": "{", "<": ">", ">": "<", "_": "‾", "&": "⅋"
     })
-
     function mapLetters(t, f) {
         var out = "", l = Array.from(t)
         for (var i = 0; i < l.length; i++) {
@@ -320,8 +317,7 @@ PanelWindow {
             var c = ch.toUpperCase().charCodeAt(0)
             return c >= 65 && c <= 90 ? String.fromCodePoint(0x1F170 + c - 65) : null
         }) })
-        out.push({ n: "strikethrough", c: mapLetters(t, (ch, code) =>
-            code === 32 ? null : ch + "̶") })
+        out.push({ n: "strikethrough", c: mapLetters(t, (ch, code) => code === 32 ? null : ch + "̶") })
         out.push({ n: "underline", c: mapLetters(t, (ch, code) => ch + "̲") })
         out.push({ n: "upside down", c: Array.from(mapLetters(t, (ch, code) => {
             var c = ch.toLowerCase().charCodeAt(0)
@@ -332,7 +328,7 @@ PanelWindow {
         return out
     }
 
-    // ═══════════════════ Actions ═══════════════════
+    // ═══════════════ Actions ═══════════════
     function copy(s) {
         Quickshell.execDetached(["sh", "-c",
             'wl-copy -- "$1" && notify-send -a tzeuk -t 1500 "copied" "$1"', "sh", s])
@@ -340,7 +336,6 @@ PanelWindow {
     function type(s) {
         Quickshell.execDetached(["sh", "-c", 'sleep 0.15; wtype -- "$1"', "sh", s])
     }
-
     function setList(id) {
         var out = []
         for (var i = 0; i < section.sets.length; i++) out.push(setIndex(section.sets[i]))
@@ -348,12 +343,11 @@ PanelWindow {
     }
     function recompute() {
         hovered = null
-        if (!filter) return
-        var q = filter.text
+        var q = input ? (input.text || "") : ""
         if (section.id === "fancy") results = fancy(q.trim() === "" ? "tzeuk" : q)
         else if (!loaded) results = []
         else if (section.id === "recent") {
-            if (q.trim() === "") results = recent(300)
+            if (q.trim() === "") results = recent(500)
             else {
                 var l = search(q, setList(), -1), out = []
                 for (var i = 0; i < l.length; i++) if (counts[l[i].c]) out.push(l[i])
@@ -368,6 +362,7 @@ PanelWindow {
         grid.positionViewAtBeginning()
         list.positionViewAtBeginning()
     }
+
     function cycleSection(d) { sec = (sec + d + sections.length) % sections.length }
     function cycleGroup(d) {
         if (!groups.length) return
@@ -391,32 +386,126 @@ PanelWindow {
         if (how === "type" && hasWtype) type(s)
         else copy(s)
     }
-    function move(key) {
-        var v = view
-        if (listMode) {
-            if (key === Qt.Key_Up) v.decrementCurrentIndex()
-            else if (key === Qt.Key_Down) v.incrementCurrentIndex()
+
+    function moveLinear(d) {
+        var n = results.length
+        if (n === 0) return
+        var v = listMode ? list : grid
+        v.currentIndex = Math.max(0, Math.min(n - 1, v.currentIndex + d))
+    }
+    function moveRow(d) {
+        var n = results.length
+        if (n === 0) return
+        if (listMode) { moveLinear(d); return }
+        var cols = Math.max(1, Math.floor(grid.width / grid.cellWidth))
+        var cur = grid.currentIndex
+        var row = Math.floor(cur / cols)
+        var col = cur % cols
+        var newRow = Math.max(0, row + d)
+        grid.currentIndex = Math.min(n - 1, newRow * cols + col)
+    }
+    function moveDir(dir) {
+        if (dir === "up") moveRow(-1)
+        else if (dir === "down") moveRow(1)
+        else if (dir === "left") moveLinear(-1)
+        else if (dir === "right") moveLinear(1)
+    }
+
+    function handleKey(event) {
+        var ctrl  = (event.modifiers & Qt.ControlModifier) !== 0
+        var shift = (event.modifiers & Qt.ShiftModifier) !== 0
+        var alt   = (event.modifiers & Qt.AltModifier) !== 0
+        event.accepted = true
+
+        if (pending === "g") {
+            pending = ""
+            if (event.key === Qt.Key_G && !shift) {
+                if (listMode) list.currentIndex = 0
+                else grid.currentIndex = 0
+            }
             return
         }
-        if (key === Qt.Key_Up) v.moveCurrentIndexUp()
-        else if (key === Qt.Key_Down) v.moveCurrentIndexDown()
-        else if (key === Qt.Key_Left) v.moveCurrentIndexLeft()
-        else if (key === Qt.Key_Right) v.moveCurrentIndexRight()
-    }
-    function page(d) {
-        var step = listMode ? 10 : grid.cols * Math.max(1, Math.floor(grid.height / grid.cellHeight))
-        view.currentIndex = Math.max(0, Math.min(results.length - 1, view.currentIndex + d * step))
-    }
-    function fontOf(it) {
-        return it && it.s !== undefined && sets[it.s] && sets[it.s].id === "emoji"
-            ? "Noto Color Emoji" : cNf
+
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (ctrl) pick(current, "buffer")
+            else if (shift) pick(current, "type")
+            else if (alt) pick(current, "code")
+            else pick(current, "copy")
+            return
+        }
+        if (event.key === Qt.Key_Tab) { cycleSection(1); return }
+        if (event.key === Qt.Key_Backtab) { cycleSection(-1); return }
+        if (ctrl && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+            cycleGroup(event.key === Qt.Key_Left ? -1 : 1); return
+        }
+        if (alt && event.key >= Qt.Key_1 && event.key < Qt.Key_1 + sections.length) {
+            sec = event.key - Qt.Key_1; return
+        }
+
+        if (mode === "insert") {
+            if (event.key === Qt.Key_Escape) { mode = "normal"; return }
+            if (ctrl && event.key === Qt.Key_BracketLeft) { mode = "normal"; return }
+            event.accepted = false
+            return
+        }
+
+        if (ctrl) {
+            if (event.key === Qt.Key_D) { moveRow(3); return }
+            if (event.key === Qt.Key_U) { moveRow(-3); return }
+            if (event.key === Qt.Key_C || event.key === Qt.Key_Q) { closeRequested(); return }
+            return
+        }
+        switch (event.key) {
+        case Qt.Key_Escape: closeRequested(); break
+        case Qt.Key_I:
+        case Qt.Key_Slash: mode = "insert"; if (input) input.forceActiveFocus(); break
+        case Qt.Key_J: moveDir("down"); break
+        case Qt.Key_K: moveDir("up"); break
+        case Qt.Key_H: moveDir("left"); break
+        case Qt.Key_L: moveDir("right"); break
+        case Qt.Key_G:
+            if (shift) {
+                if (listMode) list.currentIndex = results.length - 1
+                else grid.currentIndex = results.length - 1
+            } else pending = "g"
+            break
+        }
     }
 
-    // ═══════════════════ Open / close ═══════════════════
-    property real t: opened ? 1 : 0
-    Behavior on t { NumberAnimation { duration: cT; easing.type: Easing.BezierSpline; easing.bezierCurve: cGlide } }
+    function paintDots(canvas, gap, alpha) {
+        var ctx = canvas.getContext("2d")
+        ctx.reset()
+        ctx.fillStyle = "rgba(255,255,255," + alpha + ")"
+        for (var y = gap / 2; y < canvas.height; y += gap)
+            for (var x = gap / 2; x < canvas.width; x += gap) {
+                ctx.beginPath()
+                ctx.arc(x, y, 1, 0, Math.PI * 2)
+                ctx.fill()
+            }
+    }
 
-    visible: t > 0
+    // ═══════════════ Lifecycle ═══════════════
+    onOpenedChanged: {
+        if (!opened) return
+        hovered = null
+        buffer = ""
+        if (input) input.text = ""
+        grp = -1
+        mode = "insert"
+        pending = ""
+        sec = 0
+        recompute()
+        focusTimer.restart()
+    }
+    onSecChanged: { grp = -1; recompute() }
+    onGrpChanged: recompute()
+    onLoadedChanged: if (loaded) recompute()
+
+    Timer { id: debounce;    interval: 40; onTriggered: win.recompute() }
+    Timer { id: focusTimer;  interval: 80; onTriggered: if (input) input.forceActiveFocus() }
+
+    // ═══════════════ Window ═══════════════
+    visible: opened
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
@@ -424,229 +513,324 @@ PanelWindow {
     WlrLayershell.namespace: "tzeuk-chars"
     WlrLayershell.keyboardFocus: opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    onOpenedChanged: {
-        if (!opened) return
-        hovered = null
-        buffer = ""
-        filter.text = ""
-        grp = -1
-        sec = loaded && recent(1).length ? 1 : 0
-        recompute()
-        focusTimer.restart()
-    }
-    onSecChanged: { grp = -1; recompute() }
-    onGrpChanged: recompute()
-    Timer { id: debounce; interval: 40; onTriggered: win.recompute() }
-    Timer { id: focusTimer; interval: 80; onTriggered: filter.forceActiveFocus() }
-
-    // ═══════════════════ UI ═══════════════════
     Rectangle {
         anchors.fill: parent
-        color: cScrim
-        opacity: win.t
+        color: "#000000b3"
         MouseArea { anchors.fill: parent; onClicked: win.closeRequested() }
     }
 
     Rectangle {
         id: card
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: Math.round((parent.height - height) / 2) - 30 + 24 * (1 - win.t)
-        width: Math.min(parent.width - 80, 960)
-        height: Math.min(parent.height - 160, 740)
-        opacity: win.t
-        radius: 0
-        color: cS1
+        anchors.centerIn: parent
+        width:  Math.min(parent.width  - 80, 820)
+        height: Math.min(parent.height - 80, 680)
+        radius: 28
+        color: cBlack
+        border.color: cWhite
         border.width: 1
-        border.color: cS2
+        clip: true
         MouseArea { anchors.fill: parent }
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 30
-            spacing: 14
+            anchors.margins: 20
+            spacing: 10
 
-            // ── Search + tone + close ──
-            RowLayout {
+            // ═══ Header: section label + count + LED ═══
+            Item {
                 Layout.fillWidth: true
-                spacing: 10
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 60
-                    radius: 0
-                    color: cS2
+                Layout.preferredHeight: 46
 
-                    Icon {
-                        id: lens
-                        x: 22
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: win.iSearch
-                        color: cGrey
-                        font.pixelSize: 20
-                    }
+                Text {
+                    id: sectionLabel
+                    anchors.left: parent.left
+                    anchors.right: headerRight.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: win.section.label.toUpperCase()
+                    color: cWhite
+                    font.family: fDot
+                    font.weight: Font.Black
+                    font.pixelSize: 36
+                    elide: Text.ElideRight
+                }
+
+                Row {
+                    id: headerRight
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 8
+
                     Text {
-                        anchors.left: filter.left
-                        anchors.right: count.left
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: filter.text === ""
-                        elide: Text.ElideRight
-                        text: win.loadError
-                            ? win.loadError
-                            : (win.section.id === "fancy"
-                               ? "Type some text"
-                               : "Search " + win.section.label + " (name, keyword, u+f0001, or paste a glyph)")
-                        color: win.loadError ? cLive : cMute
-                        font.family: cUi
-                        font.pixelSize: 18
+                        text: win.loaded
+                            ? win.items.length.toLocaleString() + " GLYPHS"
+                            : (win.loadError || "LOADING")
+                        color: win.loadError ? cRed : dim(0.6)
+                        font.family: fMono
+                        font.pixelSize: 11
+                        font.letterSpacing: 1
                     }
-                    TextInput {
-                        id: filter
-                        anchors.left: lens.right
-                        anchors.leftMargin: 14
-                        anchors.right: count.left
-                        anchors.rightMargin: 12
+
+                    Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
-                        color: cFg
-                        selectionColor: cFill
-                        selectedTextColor: cFillFg
-                        font.family: cUi
-                        font.pixelSize: 18
-                        clip: true
-                        cursorDelegate: Rectangle {
-                            width: 2
-                            color: cLive
-                            visible: filter.activeFocus
-                            Timer {
-                                running: filter.activeFocus
-                                interval: 500; repeat: true
-                                onTriggered: parent.opacity = 1 - parent.opacity
-                            }
+                        width: 8; height: 8; radius: 4
+                        color: cRed
+                        SequentialAnimation on opacity {
+                            running: win.visible
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.2; duration: 800 }
+                            NumberAnimation { to: 1.0; duration: 800 }
                         }
-                        onTextChanged: {
-                            if (text !== "" && win.section.id === "recent") win.sec = 0
-                            if (text === "") win.recompute(); else debounce.restart()
-                        }
-                        Keys.onEscapePressed: win.closeRequested()
-                        Keys.onPressed: event => {
-                            var k = event.key, m = event.modifiers
-                            var vim = {
-                                [Qt.Key_H]: Qt.Key_Left, [Qt.Key_J]: Qt.Key_Down,
-                                [Qt.Key_K]: Qt.Key_Up,   [Qt.Key_L]: Qt.Key_Right
-                            }
-                            if ((m & Qt.ControlModifier) && vim[k] !== undefined) {
-                                win.hovered = null
-                                win.move(vim[k])
-                                event.accepted = true
-                                return
-                            }
-                            if (k === Qt.Key_Return || k === Qt.Key_Enter) {
-                                if (debounce.running) { debounce.stop(); win.recompute() }
-                                var it = win.results[win.view.currentIndex]
-                                if (m & Qt.ControlModifier) win.pick(it, "buffer")
-                                else if (m & Qt.ShiftModifier) win.pick(it, "type")
-                                else if (m & Qt.AltModifier) win.pick(it, "code")
-                                else win.pick(it, "copy")
-                            } else if (k === Qt.Key_Tab) win.cycleSection(1)
-                            else if (k === Qt.Key_Backtab) win.cycleSection(-1)
-                            else if ((m & Qt.ControlModifier) && (k === Qt.Key_Left || k === Qt.Key_Right))
-                                win.cycleGroup(k === Qt.Key_Left ? -1 : 1)
-                            else if ((m & Qt.AltModifier) && k >= Qt.Key_1 && k < Qt.Key_1 + win.sections.length)
-                                win.sec = k - Qt.Key_1
-                            else if (k === Qt.Key_Up || k === Qt.Key_Down
-                                     || (!win.listMode && (k === Qt.Key_Left || k === Qt.Key_Right))) {
-                                win.hovered = null
-                                win.move(k)
-                            } else if (k === Qt.Key_PageDown) win.page(1)
-                            else if (k === Qt.Key_PageUp) win.page(-1)
-                            else if (k === Qt.Key_Backspace && filter.text === "" && win.buffer !== "")
-                                win.buffer = Array.from(win.buffer).slice(0, -1).join("")
-                            else return
-                            event.accepted = true
-                        }
-                    }
-                    Lb {
-                        id: count
-                        anchors.right: parent.right
-                        anchors.rightMargin: 22
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: win.results.length
                     }
                 }
+            }
+
+            Canvas {
+                id: ruleTop
+                Layout.fillWidth: true
+                Layout.preferredHeight: 4
+                onPaint: win.paintDots(ruleTop, 5, 0.45)
+                onWidthChanged: requestPaint()
+            }
+
+            // ═══ Search row ═══
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 44
+                spacing: 10
+
+                Rectangle {
+                    id: bar
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: 22
+                    color: cBlack
+                    border.width: 1
+                    border.color: win.mode === "insert" ? cWhite : dim(0.3)
+                    Behavior on border.color { ColorAnimation { duration: 120 } }
+
+                    Text {
+                        id: prompt
+                        x: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: ">"
+                        color: cRed
+                        font.family: fDot
+                        font.weight: Font.Black
+                        font.pixelSize: 20
+                    }
+
+                    Rectangle {
+                        id: modeTag
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 72; height: 28; radius: 14
+                        color: win.mode === "insert" ? "transparent" : cWhite
+                        border.width: 1
+                        border.color: win.mode === "insert" ? cRed : cWhite
+                        Text {
+                            anchors.centerIn: parent
+                            text: win.mode === "insert" ? "INSERT" : "NORMAL"
+                            color: win.mode === "insert" ? cRed : cBlack
+                            font.family: fMono
+                            font.pixelSize: 10
+                            font.letterSpacing: 1
+                        }
+                    }
+
+                    Item {
+                        anchors.left: prompt.right
+                        anchors.leftMargin: 10
+                        anchors.right: modeTag.left
+                        anchors.rightMargin: 8
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        clip: true
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: input.text.length === 0
+                            text: win.section.id === "fancy" ? "TYPE ANYTHING" : "SEARCH GLYPHS"
+                            color: dim(0.4)
+                            font.family: fMono
+                            font.pixelSize: 12
+                            font.letterSpacing: 1.2
+                        }
+
+                        TextInput {
+                            id: input
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            readOnly: win.mode === "normal"
+                            color: cWhite
+                            selectionColor: cRed
+                            selectedTextColor: cWhite
+                            font.family: fSans
+                            font.pixelSize: 17
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                            clip: true
+
+                            cursorDelegate: Rectangle {
+                                width: 8
+                                color: win.mode === "insert" ? cRed : "transparent"
+                                border.width: 1
+                                border.color: cRed
+                            }
+
+                            onTextChanged: {
+                                if (text !== "" && win.section.id === "recent") win.sec = 0
+                                if (text === "") win.recompute(); else debounce.restart()
+                            }
+                            Keys.onPressed: event => win.handleKey(event)
+                        }
+                    }
+                }
+
                 Row {
+                    spacing: 2
                     visible: win.loaded && (win.section.id === "emoji"
                              || win.section.id === "all" || win.section.id === "recent")
-                    spacing: 2
+                    Layout.preferredWidth: visible ? implicitWidth : 0
+                    Layout.fillHeight: true
                     Repeater {
                         model: 6
                         delegate: Rectangle {
                             required property int index
                             readonly property var hand: win.byChar["✋"]
-                            width: 40; height: 40; radius: 20
-                            color: win.tone === index ? cFill
-                                 : (tm.containsMouse ? cS3 : "transparent")
+                            width: 34; height: 34; radius: 17
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: win.tone === index ? cWhite : (tm.containsMouse ? cS3 : "transparent")
                             Text {
                                 anchors.centerIn: parent
                                 text: parent.hand ? win.glyph(parent.hand, parent.index) : ""
-                                font.family: "Noto Color Emoji"
-                                font.pixelSize: 17
+                                font.family: fEmoji
+                                font.pixelSize: 15
                             }
                             MouseArea {
                                 id: tm
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: { win.tone = parent.index; filter.forceActiveFocus() }
+                                onClicked: { win.tone = parent.index; if (input) input.forceActiveFocus() }
                             }
                         }
                     }
                 }
-                IconBtn { implicitHeight: 48; icon: win.iClose; onClicked: win.closeRequested() }
-            }
 
-            // ── Sections ──
-            Row {
-                Layout.fillWidth: true
-                spacing: 2
-                Repeater {
-                    model: win.sections
-                    delegate: Chip {
-                        required property var modelData
-                        required property int index
-                        text: modelData.label
-                        selected: win.sec === index
-                        onClicked: { win.sec = index; filter.forceActiveFocus() }
+                Rectangle {
+                    Layout.preferredWidth: 34
+                    Layout.preferredHeight: 34
+                    radius: 17
+                    color: cm.containsMouse ? cS3 : "transparent"
+                    Text {
+                        anchors.centerIn: parent
+                        text: win.iClose
+                        color: cWhite
+                        font.family: fNf
+                        font.pixelSize: 13
+                    }
+                    MouseArea {
+                        id: cm
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: win.closeRequested()
                     }
                 }
             }
 
-            // ── Groups ──
-            ListView {
-                id: chips
+            // ═══ Section chips ═══
+            Item {
                 Layout.fillWidth: true
-                implicitHeight: 32
-                visible: win.groups.length > 0
-                orientation: ListView.Horizontal
-                spacing: 4
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                model: win.groups.length ? ["all"].concat(win.groups) : []
-                currentIndex: win.grp + 1
-                onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
-                delegate: Chip {
-                    required property var modelData
-                    required property int index
-                    height: 32
-                    px: 10
-                    filled: true
-                    text: modelData
-                    selected: win.grp === index - 1
-                    onClicked: { win.grp = index - 1; filter.forceActiveFocus() }
+                Layout.preferredHeight: 28
+                ListView {
+                    anchors.fill: parent
+                    orientation: ListView.Horizontal
+                    spacing: 2
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: win.sections
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        readonly property bool sel: win.sec === index
+                        width: sLabel.implicitWidth + 22
+                        height: 28; radius: 14
+                        color: sel ? cWhite : (sh.containsMouse ? cS3 : "transparent")
+                        border.width: 1
+                        border.color: sel ? cWhite : dim(0.2)
+                        Text {
+                            id: sLabel
+                            anchors.centerIn: parent
+                            text: modelData.label
+                            color: sel ? cBlack : cWhite
+                            font.family: fMono
+                            font.pixelSize: 11
+                            font.letterSpacing: 0.5
+                        }
+                        MouseArea {
+                            id: sh
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { win.sec = index; if (input) input.forceActiveFocus() }
+                        }
+                    }
                 }
             }
 
-            // ── Results ──
+            // ═══ Group chips ═══
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: win.groups.length > 0 ? 24 : 0
+                visible: win.groups.length > 0
+                ListView {
+                    anchors.fill: parent
+                    orientation: ListView.Horizontal
+                    spacing: 4
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    model: win.groups.length
+                        ? ["ALL"].concat(win.groups.map(g => g.toUpperCase()))
+                        : []
+                    currentIndex: win.grp + 1
+                    onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        readonly property bool sel: win.grp === index - 1
+                        width: gLabel.implicitWidth + 16
+                        height: 24; radius: 12
+                        color: sel ? cRed : (gh.containsMouse ? cS3 : "transparent")
+                        border.width: 1
+                        border.color: sel ? cRed : dim(0.15)
+                        Text {
+                            id: gLabel
+                            anchors.centerIn: parent
+                            text: modelData
+                            color: sel ? cWhite : dim(0.7)
+                            font.family: fMono
+                            font.pixelSize: 10
+                            font.letterSpacing: 0.5
+                        }
+                        MouseArea {
+                            id: gh
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: { win.grp = index - 1; if (input) input.forceActiveFocus() }
+                        }
+                    }
+                }
+            }
+
+            // ═══ Results ═══
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.minimumHeight: 120
 
                 GridView {
                     id: grid
@@ -661,22 +845,34 @@ PanelWindow {
                     highlightMoveDuration: 0
                     keyNavigationWraps: false
                     cacheBuffer: 400
+
                     delegate: Rectangle {
                         id: cell
                         required property int index
                         readonly property var it: win.results[index]
-                        readonly property bool selected: grid.currentIndex === index
+                        readonly property bool sel: grid.currentIndex === index
+                        readonly property bool long: cell.it && cell.it.c.length > 2
                         width: grid.cellWidth - 4
                         height: grid.cellHeight - 4
                         radius: 18
-                        color: selected ? cFill : (gm.containsMouse ? cS2 : "transparent")
+                        color: sel ? cWhite : (gm.containsMouse ? cS2 : "transparent")
+                        border.width: 1
+                        border.color: sel ? cWhite : dim(0.08)
+
                         Text {
                             anchors.centerIn: parent
+                            width: parent.width - 6
+                            height: parent.height - 6
                             text: cell.it ? win.glyph(cell.it, win.tone) : ""
-                            color: cell.selected ? cFillFg : cFg
+                            color: cell.sel ? cBlack : cWhite
                             font.family: win.fontOf(cell.it)
-                            font.pixelSize: 26
+                            font.pixelSize: cell.long ? 14 : 26
+                            minimumPixelSize: 7
+                            fontSizeMode: cell.long ? Text.Fit : Text.FixedSize
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
+
                         MouseArea {
                             id: gm
                             anchors.fill: parent
@@ -690,6 +886,15 @@ PanelWindow {
                             }
                         }
                     }
+
+                    Rectangle {
+                        anchors.right: parent.right
+                        visible: grid.visibleArea.heightRatio < 1
+                        y: grid.visibleArea.yPosition * parent.height
+                        width: 2
+                        height: Math.max(16, grid.visibleArea.heightRatio * parent.height)
+                        color: dim(0.5)
+                    }
                 }
 
                 ListView {
@@ -701,36 +906,47 @@ PanelWindow {
                     spacing: 2
                     boundsBehavior: Flickable.StopAtBounds
                     highlightMoveDuration: 0
+
                     delegate: Rectangle {
                         id: row
                         required property int index
                         readonly property var it: win.results[index]
-                        readonly property bool selected: list.currentIndex === index
+                        readonly property bool sel: list.currentIndex === index
                         width: list.width
-                        height: 52
-                        radius: 0
-                        color: selected ? cFill : (lm.containsMouse ? cS2 : "transparent")
+                        height: 40
+                        radius: 20
+                        color: sel ? cWhite : (lm.containsMouse ? cS2 : "transparent")
+                        border.width: 1
+                        border.color: sel ? cWhite : dim(0.08)
                         Text {
                             anchors.left: parent.left
-                            anchors.leftMargin: 22
+                            anchors.leftMargin: 16
                             anchors.right: tag.left
-                            anchors.rightMargin: 12
+                            anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
                             text: row.it ? row.it.c : ""
                             elide: Text.ElideRight
                             maximumLineCount: 1
-                            color: row.selected ? cFillFg : cFg
-                            font.family: cUi
-                            font.pixelSize: 18
+                            color: row.sel ? cBlack : cWhite
+                            font.family: fSans
+                            font.pixelSize: 15
                         }
-                        Lb {
+                        Text {
                             id: tag
                             anchors.right: parent.right
-                            anchors.rightMargin: 22
+                            anchors.rightMargin: 16
                             anchors.verticalCenter: parent.verticalCenter
-                            px: 10
-                            text: row.it ? (win.section.id === "fancy" ? row.it.n : row.it.k) : ""
-                            color: row.selected ? cFillFg : cGrey
+                            text: row.it
+                                ? (win.section.id === "fancy"
+                                   ? row.it.n.toUpperCase()
+                                   : row.it.k.toUpperCase())
+                                : ""
+                            color: row.sel ? dim(0.55) : dim(0.4)
+                            font.family: fMono
+                            font.pixelSize: 10
+                            font.letterSpacing: 0.5
+                            elide: Text.ElideRight
+                            width: Math.min(implicitWidth, 200)
                         }
                         MouseArea {
                             id: lm
@@ -745,122 +961,163 @@ PanelWindow {
                             }
                         }
                     }
+
+                    Rectangle {
+                        anchors.right: parent.right
+                        visible: list.visibleArea.heightRatio < 1
+                        y: list.visibleArea.yPosition * parent.height
+                        width: 2
+                        height: Math.max(16, list.visibleArea.heightRatio * parent.height)
+                        color: dim(0.5)
+                    }
                 }
 
-                Lb {
+                Text {
                     anchors.centerIn: parent
                     visible: win.results.length === 0
-                    color: win.loadError ? cLive : cMute
                     text: win.loadError ? win.loadError
-                        : (!win.loaded && win.section.id !== "fancy" ? "loading glyphs…"
-                        : (win.section.id === "recent" && filter.text === "" ? "nothing used yet"
-                        : "no matches"))
+                        : (!win.loaded && win.section.id !== "fancy" ? "LOADING…"
+                        : (win.section.id === "recent" && input && input.text === "" ? "NOTHING USED YET"
+                        : "NO MATCHES"))
+                    color: win.loadError ? cRed : dim(0.4)
+                    font.family: fDot
+                    font.weight: Font.Black
+                    font.pixelSize: 28
+                    font.letterSpacing: 2
                 }
             }
 
-            // ── Footer preview ──
-            Rectangle {
+            Canvas {
+                id: ruleBot
                 Layout.fillWidth: true
-                implicitHeight: 92
-                radius: 0
-                color: cS2
+                Layout.preferredHeight: 4
+                onPaint: win.paintDots(ruleBot, 5, 0.45)
+                onWidthChanged: requestPaint()
+            }
+
+            // ═══ Preview ═══
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                spacing: 14
 
                 Rectangle {
-                    id: big
+                    Layout.preferredWidth: win.listMode ? 0 : 48
+                    Layout.preferredHeight: win.listMode ? 0 : 48
                     visible: !win.listMode
-                    x: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: visible ? 68 : 0
-                    height: 68
-                    radius: 34
-                    color: cS3
+                    radius: 24
+                    color: cS2
+                    border.width: 1
+                    border.color: dim(0.15)
                     Text {
                         anchors.centerIn: parent
-                        text: win.current ? win.glyph(win.current, win.tone) : ""
-                        color: cFill
+                        width: parent.width - 6
+                        height: parent.height - 6
+                        text: win.current ? win.glyph(win.current, win.tone) : "—"
+                        color: win.current ? cWhite : dim(0.3)
                         font.family: win.fontOf(win.current)
-                        font.pixelSize: 36
+                        font.pixelSize: 26
+                        minimumPixelSize: 8
+                        fontSizeMode: Text.Fit
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                 }
-                Column {
-                    anchors.left: big.right
-                    anchors.leftMargin: 16
-                    anchors.right: buf.left
-                    anchors.rightMargin: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
+
                     Text {
-                        width: parent.width
-                        text: win.current ? win.current.n : ""
-                        elide: Text.ElideRight
-                        color: cFg
-                        font.family: cUi
-                        font.pixelSize: 16
+                        Layout.fillWidth: true
+                        text: win.current ? win.current.n : "—"
+                        color: cWhite
+                        font.family: fSans
+                        font.pixelSize: 14
                         font.weight: Font.DemiBold
+                        elide: Text.ElideRight
                     }
-                    Lb {
-                        width: parent.width
-                        visible: win.current !== null && win.section.id !== "fancy"
-                        px: 10
-                        color: cFill
+                    Text {
+                        Layout.fillWidth: true
+                        color: cRed
+                        font.family: fMono
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.8
+                        elide: Text.ElideRight
                         text: {
                             var c = win.current
-                            if (!c || c.s === undefined || !win.sets[c.s]) return ""
+                            if (!c) return "—"
+                            if (win.section.id === "fancy") return "FANCY · " + c.n.toUpperCase()
+                            if (c.s === undefined || !win.sets[c.s]) return ""
                             var st = win.sets[c.s]
                             return (st.id === "kao" ? "" : win.hex(win.glyph(c, win.tone)) + " · ")
-                                + st.label + " · " + st.groups[c.g]
+                                + st.label.toUpperCase() + " · " + st.groups[c.g].toUpperCase()
                         }
-                        elide: Text.ElideRight
                     }
-                    Lb {
-                        width: parent.width
+                    Text {
+                        Layout.fillWidth: true
                         visible: text !== ""
-                        px: 10
-                        text: win.current && win.current.k && win.section.id !== "kao" ? win.current.k : ""
+                        color: dim(0.4)
+                        font.family: fMono
+                        font.pixelSize: 10
+                        font.letterSpacing: 0.5
                         elide: Text.ElideRight
+                        text: win.current && win.current.k && win.section.id !== "kao"
+                            ? win.current.k.toUpperCase() : ""
                     }
                 }
+
                 Row {
-                    id: buf
-                    anchors.right: parent.right
-                    anchors.rightMargin: 22
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: 8
                     visible: win.buffer !== ""
-                    width: visible ? implicitWidth : 0
-                    Icon {
+                    Layout.preferredWidth: visible ? implicitWidth : 0
+                    Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: win.iBuffer
-                        color: cLive
-                        font.pixelSize: 18
+                        color: cRed
+                        font.family: fNf
+                        font.pixelSize: 16
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.min(implicitWidth, 220)
+                        width: Math.min(implicitWidth, 180)
                         text: win.buffer
                         elide: Text.ElideLeft
-                        color: cFg
-                        font.family: cNf
-                        font.pixelSize: 20
+                        color: cWhite
+                        font.family: fNf
+                        font.pixelSize: 17
                     }
                 }
             }
-        }
-    }
 
-    // ── Footer hints ──
-    Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: card.bottom
-        anchors.topMargin: 26
-        opacity: win.t
-        spacing: 30
-        Repeater {
-            model: ["↵ copy"]
-                .concat(win.hasWtype ? ["shift ↵ type"] : [])
-                .concat(["ctrl ↵ collect", "alt ↵ code", "ctrl hjkl move",
-                         "tab section", "ctrl ←→ group", "esc close"])
-            Lb { required property string modelData; text: modelData }
+            // ═══ Footer ═══
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 14
+
+                Text {
+                    text: win.mode === "insert"
+                        ? "ESC NORMAL   ENTER COPY   S-ENTER TYPE"
+                        : "HJKL MOVE   ENTER COPY   I INSERT   ESC QUIT"
+                    color: dim(0.45)
+                    font.family: fMono
+                    font.pixelSize: 10
+                    font.letterSpacing: 1
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Text {
+                    text: win.results.length === 0
+                        ? "00/00"
+                        : win.pad2((win.listMode ? list.currentIndex : grid.currentIndex) + 1)
+                          + "/" + win.pad2(win.results.length)
+                    color: cRed
+                    font.family: fDot
+                    font.weight: Font.Black
+                    font.pixelSize: 15
+                }
+            }
         }
     }
 }
