@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="TZEUK banner" width="980" />
+  <img src="assets/banner.png" alt="TZEUK banner" width="700" />
 </p>
 
 # TZEUK
