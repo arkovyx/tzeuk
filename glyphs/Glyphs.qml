@@ -13,6 +13,9 @@ PanelWindow {
     property int selectedIndex: 0
     property string activeCategory: "all"
 
+    // Safety caps
+    readonly property int maxResults: 2000
+
     signal closeRequested()
 
     visible: opened
@@ -37,10 +40,6 @@ PanelWindow {
     readonly property color nDim: "#2a2a2a"
     readonly property color nSurface: "#0d0d0d"
     readonly property color nText: "#666666"
-
-    // Fonts that carry the various glyph sets
-    readonly property string fontNerd: "JetBrainsMono Nerd Font"
-    readonly property string fontEmoji: "Noto Color Emoji"
 
     property var allGlyphs: []
     property var filteredGlyphs: []
@@ -81,19 +80,24 @@ PanelWindow {
             onStreamFinished: {
                 var lines = text.split("\n")
                 var out = []
+                var skipped = 0
                 for (var i = 0; i < lines.length; i++) {
                     if (lines[i] === "") continue
                     var parts = lines[i].split("\t")
-                    if (parts.length < 1 || parts[0] === "") continue
+                    if (parts.length < 1 || parts[0] === "") { skipped++; continue }
+                    var g = parts[0]
+                    // Reject garbage: empty, too long, or looks like a codepoint list
+                    if (g.length > 2) { skipped++; continue }
+                    if (g.indexOf("U+") === 0) { skipped++; continue }
                     out.push({
-                        glyph: parts[0],
+                        glyph: g,
                         name: parts.length > 1 ? parts[1] : "",
                         category: parts.length > 2 ? parts[2] : "other"
                     })
                 }
                 win.allGlyphs = out
                 win.filterGlyphs()
-                console.log("Glyphs loaded:", out.length, "items")
+                console.log("Glyphs loaded:", out.length, "valid,", skipped, "skipped")
             }
         }
     }
@@ -103,6 +107,7 @@ PanelWindow {
         var cat = activeCategory
         var result = []
         for (var i = 0; i < allGlyphs.length; i++) {
+            if (result.length >= maxResults) break
             var g = allGlyphs[i]
             if (cat !== "all" && g.category !== cat) continue
             if (q !== "" && g.name.toLowerCase().indexOf(q) < 0) continue
@@ -125,6 +130,12 @@ PanelWindow {
     function navTo(idx) {
         if (win.filteredGlyphs.length === 0) return
         win.selectedIndex = Math.max(0, Math.min(idx, win.filteredGlyphs.length - 1))
+    }
+
+    function fontFor(category) {
+        if (category === "emoji") return "Noto Color Emoji"
+        if (category === "math") return "sans-serif"
+        return "JetBrainsMono Nerd Font"
     }
 
     onOpenedChanged: {
@@ -181,23 +192,17 @@ PanelWindow {
             anchors.margins: 24
             spacing: 14
 
-            // ===== Header (no title) =====
+            // ===== Header (no red line, no title) =====
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
 
-                Rectangle {
-                    width: 28
-                    height: 3
-                    radius: 1.5
-                    color: win.nRed
-                    Layout.alignment: Qt.AlignVCenter
-                }
-
                 Item { Layout.fillWidth: true }
 
                 Text {
-                    text: win.filteredGlyphs.length + " RESULTS"
+                    text: win.filteredGlyphs.length
+                        + (win.filteredGlyphs.length >= win.maxResults ? "+" : "")
+                        + " RESULTS"
                     color: win.nText
                     font.family: win.fSans
                     font.pixelSize: 10
@@ -212,7 +217,6 @@ PanelWindow {
                     color: closeHover.containsMouse ? win.nRed : win.nSurface
                     border.width: 1
                     border.color: win.nDim
-                    Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
@@ -250,7 +254,6 @@ PanelWindow {
                              : (catHover.containsMouse ? win.nDim : win.nSurface)
                         border.width: 1
                         border.color: isActive ? win.nWhite : win.nDim
-                        Behavior on color { ColorAnimation { duration: 150 } }
 
                         Row {
                             id: catLabel
@@ -296,7 +299,6 @@ PanelWindow {
                 border.width: 1
                 border.color: searchInput.activeFocus ? win.nRed : win.nDim
                 radius: 24
-                Behavior on border.color { ColorAnimation { duration: 150 } }
 
                 RowLayout {
                     anchors.fill: parent
@@ -345,7 +347,6 @@ PanelWindow {
                         Keys.onLeftPressed: win.navTo(win.selectedIndex - 1)
                         Keys.onRightPressed: win.navTo(win.selectedIndex + 1)
 
-                        // ===== Vim keybinds =====
                         Keys.onPressed: (event) => {
                             if (win.filteredGlyphs.length === 0) return
                             var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -353,26 +354,19 @@ PanelWindow {
 
                             if (ctrl) {
                                 if (event.key === Qt.Key_N || event.key === Qt.Key_J) {
-                                    win.navTo(win.selectedIndex + 1)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex + 1); event.accepted = true
                                 } else if (event.key === Qt.Key_P || event.key === Qt.Key_K) {
-                                    win.navTo(win.selectedIndex - 1)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex - 1); event.accepted = true
                                 } else if (event.key === Qt.Key_H) {
-                                    win.navTo(win.selectedIndex - 1)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex - 1); event.accepted = true
                                 } else if (event.key === Qt.Key_L) {
-                                    win.navTo(win.selectedIndex + 1)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex + 1); event.accepted = true
                                 } else if (event.key === Qt.Key_D) {
-                                    win.navTo(win.selectedIndex + 12)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex + 12); event.accepted = true
                                 } else if (event.key === Qt.Key_U) {
-                                    win.navTo(win.selectedIndex - 12)
-                                    event.accepted = true
+                                    win.navTo(win.selectedIndex - 12); event.accepted = true
                                 } else if (event.key === Qt.Key_G) {
-                                    win.navTo(shift ? win.filteredGlyphs.length - 1 : 0)
-                                    event.accepted = true
+                                    win.navTo(shift ? win.filteredGlyphs.length - 1 : 0); event.accepted = true
                                 }
                             }
                         }
@@ -391,6 +385,7 @@ PanelWindow {
                 model: win.filteredGlyphs
                 currentIndex: win.selectedIndex
                 boundsBehavior: Flickable.StopAtBounds
+                cacheBuffer: 800
 
                 delegate: Rectangle {
                     required property var modelData
@@ -401,14 +396,15 @@ PanelWindow {
                     radius: 12
                     color: isSelected ? win.nRed
                          : (glyphHover.containsMouse ? win.nSurface : "transparent")
-                    Behavior on color { ColorAnimation { duration: 120 } }
 
                     Text {
                         anchors.centerIn: parent
                         text: modelData.glyph
                         color: win.nWhite
-                        font.family: modelData.category === "emoji" ? win.fontEmoji : win.fontNerd
+                        font.family: win.fontFor(modelData.category)
                         font.pixelSize: 26
+                        // Prevent size jitter when glyph is missing
+                        fontSizeMode: Text.FixedSize
                     }
 
                     MouseArea {
