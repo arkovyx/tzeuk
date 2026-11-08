@@ -3,10 +3,12 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Pipewire
+
 import "bar"
 import "panel"
 import "launcher"
 import "glyphs"
+import "wallpicker"
 
 ShellRoot {
     id: root
@@ -22,11 +24,9 @@ ShellRoot {
         objects: Pipewire.nodes.values
     }
 
-    // Dynamically returns the screen that currently has focus in Hyprland
     function focusedScreen() {
         var screens = Quickshell.screens
         if (screens.length === 0) return null
-
         var focused = Hyprland.focusedMonitor
         if (focused && focused.name) {
             for (var i = 0; i < screens.length; i++) {
@@ -35,7 +35,6 @@ ShellRoot {
                 }
             }
         }
-        // Fallback to first screen if hyprland focused monitor isn't found
         return screens[0]
     }
 
@@ -90,6 +89,10 @@ ShellRoot {
         opened: root.glyphsOpen
         screen: root.focusedScreen()
         onCloseRequested: root.glyphsOpen = false
+    }
+
+    WallPicker {
+        id: wallPicker
     }
 
     IpcHandler {
