@@ -9,6 +9,7 @@ import "panel"
 import "launcher"
 import "glyphs"
 import "wallpicker"
+import "powermenu"
 
 ShellRoot {
     id: root
@@ -19,6 +20,7 @@ ShellRoot {
     property bool calOpen: false
     property var calScreen: null
     property bool glyphsOpen: false
+    property bool powerOpen: false
 
     PwObjectTracker {
         objects: Pipewire.nodes.values
@@ -95,6 +97,11 @@ ShellRoot {
         id: wallPicker
     }
 
+    PowerMenu {
+        opened: root.powerOpen
+        onCloseRequested: root.powerOpen = false
+    }
+
     IpcHandler {
         target: "panel"
         function toggle(): void {
@@ -117,5 +124,12 @@ ShellRoot {
         function toggle(): void { root.glyphsOpen = !root.glyphsOpen }
         function open(): void { root.glyphsOpen = true }
         function close(): void { root.glyphsOpen = false }
+    }
+
+    IpcHandler {                    // ← add
+        target: "power"
+        function toggle(): void { root.powerOpen = !root.powerOpen }
+        function open(): void   { root.powerOpen = true }
+        function close(): void  { root.powerOpen = false }
     }
 }
