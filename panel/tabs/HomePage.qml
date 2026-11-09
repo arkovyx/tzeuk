@@ -26,6 +26,14 @@ Item {
 
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
     readonly property var ad: Bluetooth.defaultAdapter
+    readonly property var mic: {
+        try {
+            const src = Pipewire.defaultAudioSource
+            return src && src.audio ? src.audio : null
+        } catch (e) {
+            return null
+        }
+    }
 
     readonly property var player: MediaPlayer.player
     readonly property bool isPlaying: MediaPlayer.isPlaying
@@ -136,7 +144,6 @@ Item {
                         border.width: 2
                         border.color: page.nDim
 
-                        // Hidden circular mask
                         Rectangle {
                             id: circleMask
                             anchors.fill: parent
@@ -146,14 +153,12 @@ Item {
                             layer.enabled: true
                         }
 
-                        // Rotating content — reads angle from the persistent singleton
                         Item {
                             id: rotator
                             anchors.fill: parent
                             rotation: MediaPlayer.discAngle
                             transformOrigin: Item.Center
 
-                            // Fallback bg
                             Rectangle {
                                 anchors.fill: parent
                                 radius: width / 2
@@ -162,7 +167,6 @@ Item {
                                 z: 0
                             }
 
-                            // Hidden image source
                             Image {
                                 id: coverSource
                                 anchors.fill: parent
@@ -174,7 +178,6 @@ Item {
                                 z: 1
                             }
 
-                            // Circular-masked cover
                             MultiEffect {
                                 anchors.fill: parent
                                 source: coverSource
@@ -183,7 +186,6 @@ Item {
                                 z: 2
                             }
 
-                            // Vinyl grooves
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: parent.width - 30
@@ -207,7 +209,6 @@ Item {
                                 z: 3
                             }
 
-                            // Center label with DOTTED music note (eighth-note dot-matrix)
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 56
@@ -231,22 +232,21 @@ Item {
                                         ctx.clearRect(0, 0, width, height)
                                         ctx.fillStyle = page.nRed
 
-                                        // 10 x 14 dot-matrix pattern of an eighth note ♪
                                         var pattern = [
-                                            [0,0,0,0,0,0,1,1,1,0],  //  0 flag top
-                                            [0,0,0,0,0,0,1,1,1,1],  //  1 flag extends
-                                            [0,0,0,0,0,0,1,0,1,1],  //  2 flag taper
-                                            [0,0,0,0,0,0,1,0,0,0],  //  3 stem
-                                            [0,0,0,0,0,0,1,0,0,0],  //  4 stem
-                                            [0,0,0,0,0,0,1,0,0,0],  //  5 stem
-                                            [0,0,0,0,0,0,1,0,0,0],  //  6 stem
-                                            [0,0,0,0,0,0,1,0,0,0],  //  7 stem
-                                            [0,0,0,0,0,0,1,0,0,0],  //  8 stem
-                                            [0,0,0,0,1,1,1,0,0,0],  //  9 head top
-                                            [0,0,0,1,1,1,1,0,0,0],  // 10 head
-                                            [0,0,0,1,1,1,1,0,0,0],  // 11 head
-                                            [0,0,0,0,1,1,1,0,0,0],  // 12 head bottom
-                                            [0,0,0,0,0,0,0,0,0,0]   // 13 empty
+                                            [0,0,0,0,0,0,1,1,1,0],
+                                            [0,0,0,0,0,0,1,1,1,1],
+                                            [0,0,0,0,0,0,1,0,1,1],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,0,0,1,0,0,0],
+                                            [0,0,0,0,1,1,1,0,0,0],
+                                            [0,0,0,1,1,1,1,0,0,0],
+                                            [0,0,0,1,1,1,1,0,0,0],
+                                            [0,0,0,0,1,1,1,0,0,0],
+                                            [0,0,0,0,0,0,0,0,0,0]
                                         ]
 
                                         var rows = pattern.length
@@ -272,7 +272,6 @@ Item {
                                 }
                             }
 
-                            // Spindle hole
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 8
@@ -344,7 +343,6 @@ Item {
 
                         Item { Layout.fillHeight: true }
 
-                        // Progress bar — reads from persistent MediaPlayer singleton
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 5
@@ -414,7 +412,6 @@ Item {
                             }
                         }
 
-                        // Controls
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
@@ -580,7 +577,7 @@ Item {
                         { icon: Net.wifiEnabled ? "󰤨" : "󰤮", label: "WI-FI", active: Net.wifiEnabled },
                         { icon: "󰂯", label: "BT", active: page.ad ? page.ad.enabled : false },
                         { icon: Notifs.dnd ? "󰂛" : "󰂚", label: "DND", active: Notifs.dnd },
-                        { icon: (page.audio && !page.audio.muted) ? "󰍬" : "󰍭", label: "MIC", active: page.audio ? !page.audio.muted : false }
+                        { icon: (page.mic && !page.mic.muted) ? "󰍬" : "󰍭", label: "MIC", active: page.mic ? !page.mic.muted : false }
                     ]
 
                     delegate: Rectangle {
@@ -623,7 +620,7 @@ Item {
                                 if (index === 0) Net.setWifi(!Net.wifiEnabled)
                                 else if (index === 1) { if (page.ad) page.ad.enabled = !page.ad.enabled }
                                 else if (index === 2) Notifs.dnd = !Notifs.dnd
-                                else if (index === 3) { if (page.audio) page.audio.muted = !page.audio.muted }
+                                else if (index === 3) { if (page.mic) page.mic.muted = !page.mic.muted }
                             }
                         }
                     }
