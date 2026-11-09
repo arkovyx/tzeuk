@@ -10,6 +10,7 @@ import "launcher"
 import "glyphs"
 import "wallpicker"
 import "powermenu"
+import "panel/tabs"
 
 ShellRoot {
     id: root
@@ -21,6 +22,7 @@ ShellRoot {
     property var calScreen: null
     property bool glyphsOpen: false
     property bool powerOpen: false
+    property bool mediaOpen: false
 
     PwObjectTracker {
         objects: Pipewire.nodes.values
@@ -102,34 +104,36 @@ ShellRoot {
         onCloseRequested: root.powerOpen = false
     }
 
+    MediaPopup {
+    opened: root.mediaOpen
+    onCloseRequested: root.mediaOpen = false
+}
+
     IpcHandler {
         target: "panel"
-        function toggle(): void {
-            root.panelOpen = !root.panelOpen
-            if (root.panelOpen) {
-                root.panelScreen = root.focusedScreen()
-                root.activeTab = "home"
-            }
-        }
-        function show(name: string): void {
-            root.activeTab = name
-            root.panelScreen = root.focusedScreen()
-            root.panelOpen = true
-        }
-        function close(): void { root.panelOpen = false }
+        function toggle(): void { /* ... */ }
+        function show(name: string): void { /* ... */ }
+        function close(): void { /* ... */ }
     }
 
     IpcHandler {
         target: "glyphs"
         function toggle(): void { root.glyphsOpen = !root.glyphsOpen }
-        function open(): void { root.glyphsOpen = true }
-        function close(): void { root.glyphsOpen = false }
+        function open(): void   { root.glyphsOpen = true }
+        function close(): void  { root.glyphsOpen = false }
     }
 
-    IpcHandler {                    // ← add
+    IpcHandler {
         target: "power"
         function toggle(): void { root.powerOpen = !root.powerOpen }
         function open(): void   { root.powerOpen = true }
         function close(): void  { root.powerOpen = false }
+    }
+
+    IpcHandler {
+        target: "media"
+        function toggle(): void { root.mediaOpen = !root.mediaOpen }
+        function open(): void   { root.mediaOpen = true }
+        function close(): void  { root.mediaOpen = false }
     }
 }
