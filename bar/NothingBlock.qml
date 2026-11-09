@@ -12,6 +12,7 @@ Item {
 
     property string fMonoStr: "monospace"
     property string fGroteskStr: "sans-serif"
+    property string fIconStr: "JetBrainsMono Nerd Font"
     property real barHeight: 36
 
     signal clicked()
@@ -38,7 +39,7 @@ Item {
             visible: block.icon !== ""
             text: block.icon
             color: block.active ? block.nRed : block.nWhite
-            font.family: block.fMonoStr
+            font.family: block.fIconStr
             font.pixelSize: 15
             anchors.verticalCenter: parent.verticalCenter
         }
