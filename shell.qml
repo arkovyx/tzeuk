@@ -10,7 +10,6 @@ import "launcher"
 import "glyphs"
 import "wallpicker"
 import "powermenu"
-import "panel/tabs"
 
 ShellRoot {
     id: root
