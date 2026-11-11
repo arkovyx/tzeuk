@@ -26,14 +26,6 @@ Item {
 
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
     readonly property var ad: Bluetooth.defaultAdapter
-    readonly property var mic: {
-        try {
-            const src = Pipewire.defaultAudioSource
-            return src && src.audio ? src.audio : null
-        } catch (e) {
-            return null
-        }
-    }
 
     readonly property var player: MediaPlayer.player
     readonly property bool isPlaying: MediaPlayer.isPlaying
@@ -133,7 +125,6 @@ Item {
                     anchors.margins: 22
                     spacing: 28
 
-                    // ===== LEFT: ROTATING VINYL DISC =====
                     Rectangle {
                         id: disc
                         Layout.preferredWidth: 160
@@ -283,7 +274,6 @@ Item {
                         }
                     }
 
-                    // ===== RIGHT: TRACK INFO + PROGRESS + CONTROLS =====
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -577,7 +567,7 @@ Item {
                         { icon: Net.wifiEnabled ? "󰤨" : "󰤮", label: "WI-FI", active: Net.wifiEnabled },
                         { icon: "󰂯", label: "BT", active: page.ad ? page.ad.enabled : false },
                         { icon: Notifs.dnd ? "󰂛" : "󰂚", label: "DND", active: Notifs.dnd },
-                        { icon: (page.mic && !page.mic.muted) ? "󰍬" : "󰍭", label: "MIC", active: page.mic ? !page.mic.muted : false }
+                        { icon: (page.audio && !page.audio.muted) ? "󰕾" : "󰝟", label: "MUTE", active: page.audio ? page.audio.muted : false }
                     ]
 
                     delegate: Rectangle {
@@ -620,7 +610,7 @@ Item {
                                 if (index === 0) Net.setWifi(!Net.wifiEnabled)
                                 else if (index === 1) { if (page.ad) page.ad.enabled = !page.ad.enabled }
                                 else if (index === 2) Notifs.dnd = !Notifs.dnd
-                                else if (index === 3) { if (page.mic) page.mic.muted = !page.mic.muted }
+                                else if (index === 3) { if (page.audio) page.audio.muted = !page.audio.muted }
                             }
                         }
                     }
