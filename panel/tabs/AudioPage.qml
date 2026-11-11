@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 
 Item {
@@ -22,28 +23,86 @@ Item {
     readonly property color nText: "#666666"
 
     readonly property var sink: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
-    readonly property var source: Pipewire.defaultAudioSource ? Pipewire.defaultAudioSource.audio : null
     readonly property var streams: Pipewire.nodes.values.filter(function(n) {
         return n.isStream && n.audio && n.properties
             && n.properties["media.class"] === "Stream/Output/Audio"
     })
 
+    // ── MIC STATE (wpctl-driven, reliable regardless of Pipewire property) ──
+    property bool micAvailable: false
+    property bool micMuted: true
+    property real micVolume: 0
+
+    Process {
+        id: micStatusProc
+        command: ["bash", "-c", "wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var out = text.trim()
+                if (out === "" || out.indexOf("Volume") === -1) {
+                    page.micAvailable = false
+                    page.micMuted = true
+                    page.micVolume = 0
+                    return
+                }
+                page.micAvailable = true
+                page.micMuted = out.indexOf("MUTED") >= 0
+                var m = out.match(/Volume:\s*([\d.]+)/)
+                page.micVolume = m ? parseFloat(m[1]) : 0
+            }
+        }
+    }
+
+    Timer {
+        id: micPollTimer
+        interval: 800
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: micStatusProc.running = true
+    }
+
+    Timer {
+        id: micCooldown
+        interval: 220
+        onTriggered: micPollTimer.restart()
+    }
+
+    function setMicVolume(v) {
+        var clamped = Math.max(0, Math.min(1, v))
+        page.micVolume = clamped
+        if (clamped > 0 && page.micMuted) page.micMuted = false
+        micPollTimer.stop()
+        Quickshell.execDetached(["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", clamped.toFixed(2)])
+        micCooldown.restart()
+    }
+
+    function toggleMicMute() {
+        page.micMuted = !page.micMuted
+        micPollTimer.stop()
+        Quickshell.execDetached(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
+        micCooldown.restart()
+    }
+
+    // ── Slider component ──
     component NothingSlider: ColumnLayout {
         id: slider
         property string label: ""
         property string icon: ""
         property real value: 0
         property bool muted: false
+        property bool interactive: true
         signal moved(real v)
         signal iconClicked()
 
         spacing: 10
+        opacity: interactive ? 1.0 : 0.45
+        Behavior on opacity { NumberAnimation { duration: 200 } }
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
 
-            // Icon button
             Rectangle {
                 Layout.preferredWidth: 40
                 Layout.preferredHeight: 40
@@ -64,7 +123,8 @@ Item {
                     id: iconHover
                     anchors.fill: parent
                     hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
+                    cursorShape: slider.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: slider.interactive
                     onClicked: slider.iconClicked()
                 }
             }
@@ -88,7 +148,6 @@ Item {
             }
         }
 
-        // Slider track
         Rectangle {
             id: track
             Layout.fillWidth: true
@@ -105,7 +164,6 @@ Item {
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
-            // Red indicator line
             Rectangle {
                 x: Math.max(0, Math.min(track.width - width, track.width * Math.max(0, Math.min(1, slider.value)) - width / 2))
                 width: 3
@@ -118,7 +176,8 @@ Item {
                 anchors.fill: parent
                 anchors.topMargin: -8
                 anchors.bottomMargin: -8
-                cursorShape: Qt.PointingHandCursor
+                cursorShape: slider.interactive ? Qt.PointingHandCursor : Qt.ArrowCursor
+                enabled: slider.interactive
                 function setFromX(mx) { slider.moved(Math.max(0, Math.min(1, mx / track.width))) }
                 onPressed: (m) => setFromX(m.x)
                 onPositionChanged: (m) => { if (pressed) setFromX(m.x) }
@@ -139,7 +198,6 @@ Item {
             width: parent.width
             spacing: 24
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
 
@@ -173,7 +231,7 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // Output
+            // OUTPUT
             Text {
                 text: "OUTPUT"
                 color: page.nRed
@@ -189,14 +247,15 @@ Item {
                 icon: (sink && !sink.muted && sink.volume > 0) ? "󰕾" : "󰖁"
                 value: sink ? sink.volume : 0
                 muted: sink ? sink.muted : true
+                interactive: sink !== null
                 onMoved: (v) => { if (sink) sink.volume = v }
                 onIconClicked: if (sink) sink.muted = !sink.muted
             }
 
-            // Input
+            // INPUT (mic — wpctl-driven)
             Text {
-                text: "INPUT"
-                color: page.nRed
+                text: "INPUT" + (page.micAvailable ? "" : " · NO SOURCE")
+                color: page.micAvailable ? page.nRed : page.nText
                 font.family: page.fSans
                 font.pixelSize: 11
                 font.letterSpacing: 4
@@ -206,17 +265,20 @@ Item {
 
             NothingSlider {
                 Layout.fillWidth: true
-                label: "Microphone"
-                icon: (source && !source.muted) ? "󰍬" : "󰍭"
-                value: source ? source.volume : 0
-                muted: source ? source.muted : true
-                onMoved: (v) => { if (source) source.volume = v }
-                onIconClicked: if (source) source.muted = !source.muted
+                label: page.micAvailable ? "Microphone" : "Microphone (not connected)"
+                icon: !page.micAvailable
+                    ? "󰍮"
+                    : (page.micMuted || page.micVolume <= 0.001) ? "󰍭" : "󰍬"
+                value: page.micVolume
+                muted: !page.micAvailable || page.micMuted
+                interactive: page.micAvailable
+                onMoved: (v) => page.setMicVolume(v)
+                onIconClicked: page.toggleMicMute()
             }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim; Layout.topMargin: 8 }
 
-            // Applications
+            // APPLICATIONS
             Text {
                 text: "APPLICATIONS"
                 color: page.nRed
@@ -284,7 +346,6 @@ Item {
                             }
                         }
 
-                        // Slider
                         Rectangle {
                             id: appTrack
                             Layout.fillWidth: true
