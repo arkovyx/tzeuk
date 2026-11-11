@@ -16,6 +16,7 @@ Item {
     property real barHeight: 36
 
     signal clicked()
+    signal wheelScrolled(real delta)   // ← new
 
     implicitWidth: Math.max(blockRow.implicitWidth + 24, 36)
     implicitHeight: barHeight
@@ -61,5 +62,9 @@ Item {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onClicked: block.clicked()
+        onWheel: (wheel) => {
+            block.wheelScrolled(wheel.angleDelta.y)
+            wheel.accepted = true
+        }
     }
 }
