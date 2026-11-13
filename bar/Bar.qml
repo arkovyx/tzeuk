@@ -6,6 +6,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "../services"
 import "../workspaces"
+import "../themes"
 
 PanelWindow {
     id: bar
@@ -27,16 +28,16 @@ PanelWindow {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fGroteskStr: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#333333"
-    readonly property color nSurface: "#1A1A1A"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
 
     readonly property var hmon: Hyprland.monitorFor(modelData)
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
 
-    // Battery
     property real batPct: 0
     property bool charging: false
     property bool plugged: false
@@ -126,7 +127,6 @@ PanelWindow {
                 id: centerContent
                 anchors.centerIn: parent
                 spacing: 6
-
                 Text {
                     text: Qt.formatDateTime(clock.date, "HH:mm")
                     color: bar.nWhite
