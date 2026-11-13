@@ -15,11 +15,8 @@ QtObject {
 
     readonly property var imageExtensions: ["jpg", "jpeg", "png", "webp", "gif", "bmp", "avif"]
 
-    // "auto" → awww > swww > hyprpaper
     property string wallpaperBackend: "auto"
-
-    // "auto" → pywal > matugen > none
-    property string colorBackend: "auto"
+    property string colorBackend: "matugen"
 
     readonly property var setAnimations: ["fade", "wipe", "wave", "grow", "center", "outer", "any"]
     property real transitionDuration: 0.85
