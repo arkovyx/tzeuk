@@ -4,6 +4,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
+import "../themes"
+
 Scope {
     id: picker
     property bool shown: false
@@ -21,10 +23,10 @@ Scope {
     readonly property string fBold: fBoldLoader.name !== "" ? fBoldLoader.name : "sans-serif"
     readonly property string fMono: fMonoLoader.name !== "" ? fMonoLoader.name : "monospace"
 
-    readonly property color cBlack: "#000000"
-    readonly property color cWhite: "#FFFFFF"
-    readonly property color cRed: "#D71921"
-    function dim(a) { return Qt.rgba(1, 1, 1, a) }
+    readonly property color cBlack: Theme.bg
+    readonly property color cWhite: Theme.fg
+    readonly property color cRed: Theme.accent
+    function dim(a) { return Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, a) }
     function pad2(n) { return String(n).padStart(2, "0") }
 
     // ── State ──
@@ -345,7 +347,7 @@ echo "COLOR=$CB"
 if [ "$CB" = "pywal" ]; then
     wal -i "$WALL" -n -q || echo "pywal FAILED"
 elif [ "$CB" = "matugen" ]; then
-    matugen image "$WALL" || echo "matugen FAILED"
+        matugen image -i 0 --mode dark "$WALL" || echo "matugen FAILED"
 fi
 `
     Quickshell.execDetached([
