@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../services"
+import "../../themes"
 
 Item {
     id: page
@@ -13,14 +14,14 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
-    // Circular stat ring
     component StatRing: Item {
         id: ring
         property real value: 0
@@ -39,6 +40,12 @@ Item {
             width: ring.size
             height: ring.size
 
+            // theme-reactive inputs
+            property color trackColor: page.nDim
+            property color markerColor: page.nRed
+            onTrackColorChanged: requestPaint()
+            onMarkerColorChanged: requestPaint()
+
             Component.onCompleted: requestPaint()
             onWidthChanged: requestPaint()
             onHeightChanged: requestPaint()
@@ -49,14 +56,12 @@ Item {
                 var cx = width / 2, cy = height / 2
                 var r = width / 2 - 10
 
-                // Background track
                 ctx.beginPath()
                 ctx.arc(cx, cy, r, 0, Math.PI * 2)
-                ctx.strokeStyle = "#2a2a2a"
+                ctx.strokeStyle = String(trackColor)
                 ctx.lineWidth = 3
                 ctx.stroke()
 
-                // Progress arc
                 if (ring.value > 0) {
                     ctx.beginPath()
                     var start = -Math.PI / 2
@@ -68,14 +73,13 @@ Item {
                     ctx.stroke()
                 }
 
-                // Red marker at end
                 if (ring.value > 0 && ring.value < 1) {
                     var angle = -Math.PI / 2 + Math.PI * 2 * ring.value
                     var mx = cx + Math.cos(angle) * r
                     var my = cy + Math.sin(angle) * r
                     ctx.beginPath()
                     ctx.arc(mx, my, 4, 0, Math.PI * 2)
-                    ctx.fillStyle = "#d71921"
+                    ctx.fillStyle = String(markerColor)
                     ctx.fill()
                 }
             }
@@ -118,7 +122,6 @@ Item {
             width: parent.width
             spacing: 24
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
 
@@ -152,7 +155,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // Main stat rings
             RowLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
@@ -173,7 +175,6 @@ Item {
                 }
             }
 
-            // Memory detail
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: 40
@@ -207,7 +208,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim; Layout.topMargin: 8 }
 
-            // Storage
             Text {
                 text: "STORAGE"
                 color: page.nRed
