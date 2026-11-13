@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../services"
+import "../../themes"
 
 Item {
     id: page
@@ -13,12 +14,13 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     Flickable {
         anchors.fill: parent
@@ -32,7 +34,6 @@ Item {
             width: parent.width
             spacing: 20
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
 
@@ -55,7 +56,6 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                // DND toggle
                 Rectangle {
                     Layout.preferredWidth: 100
                     Layout.preferredHeight: 40
@@ -92,7 +92,6 @@ Item {
                     }
                 }
 
-                // Clear
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
@@ -121,7 +120,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // Count
             Row {
                 spacing: 12
 
@@ -143,7 +141,6 @@ Item {
                 }
             }
 
-            // Empty state
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 400
@@ -171,7 +168,6 @@ Item {
                 }
             }
 
-            // Notification cards
             Repeater {
                 model: Notifs.history()
                 delegate: Rectangle {
@@ -182,7 +178,6 @@ Item {
                     border.width: 1
                     border.color: modelData.urgency === 2 ? page.nRed : page.nDim
 
-                    // Red indicator bar for critical
                     Rectangle {
                         width: 3
                         height: parent.height - 16
@@ -261,7 +256,6 @@ Item {
                             }
                         }
 
-                        // Dismiss button
                         Rectangle {
                             Layout.preferredWidth: 32
                             Layout.preferredHeight: 32
