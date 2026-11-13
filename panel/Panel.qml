@@ -4,6 +4,8 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 
+import "../themes"
+
 PanelWindow {
     id: win
     property bool opened: false
@@ -28,12 +30,13 @@ PanelWindow {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     onOpenedChanged: {
         if (opened) grabDelay.start()
@@ -59,7 +62,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: "#000000"
+        color: Theme.bg
         opacity: win.opened ? 0.5 : 0.0
         Behavior on opacity { NumberAnimation { duration: 200 } }
     }
@@ -85,9 +88,11 @@ PanelWindow {
         Canvas {
             anchors.fill: parent
             opacity: 0.03
+            property color dotColor: Theme.fg
+            onDotColorChanged: requestPaint()
             onPaint: {
                 var ctx = getContext("2d")
-                ctx.fillStyle = "white"
+                ctx.fillStyle = Qt.rgba(dotColor.r, dotColor.g, dotColor.b, 1)
                 for (var x = 0; x < width; x += 22) {
                     for (var y = 0; y < height; y += 22) {
                         ctx.beginPath()
@@ -107,7 +112,6 @@ PanelWindow {
                 Layout.preferredWidth: 220
                 Layout.fillHeight: true
 
-                // Close button
                 Rectangle {
                     id: closeBtn
                     anchors.top: parent.top
@@ -138,7 +142,6 @@ PanelWindow {
                     }
                 }
 
-                // Pulsing red LED
                 Rectangle {
                     anchors.left: closeBtn.right
                     anchors.leftMargin: 14
@@ -155,7 +158,6 @@ PanelWindow {
                     }
                 }
 
-                // TZEUK wordmark
                 Text {
                     id: tzeukText
                     anchors.left: parent.left
@@ -170,7 +172,6 @@ PanelWindow {
                     font.letterSpacing: 6
                 }
 
-                // Red line BELOW the TZEUK text (fixed)
                 Rectangle {
                     anchors.left: parent.left
                     anchors.leftMargin: 24
@@ -181,7 +182,6 @@ PanelWindow {
                     color: win.nRed
                 }
 
-                // Tabs
                 Column {
                     anchors.top: tzeukText.bottom
                     anchors.topMargin: 48
@@ -258,7 +258,6 @@ PanelWindow {
                 }
             }
 
-            // ===== RED DIVIDER =====
             Rectangle {
                 Layout.preferredWidth: 1
                 Layout.fillHeight: true
@@ -266,7 +265,6 @@ PanelWindow {
                 opacity: 0.4
             }
 
-            // ===== CONTENT =====
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
