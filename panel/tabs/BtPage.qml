@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Bluetooth
+import "../../themes"
 
 Item {
     id: page
@@ -13,12 +14,13 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     readonly property var adapter: Bluetooth.defaultAdapter
 
@@ -66,7 +68,6 @@ Item {
             width: parent.width
             spacing: 20
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
 
@@ -89,7 +90,6 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                // Scan
                 Rectangle {
                     visible: adapter !== null && adapter.enabled
                     Layout.preferredWidth: 40
@@ -114,7 +114,6 @@ Item {
                     }
                 }
 
-                // Toggle
                 Rectangle {
                     visible: adapter !== null
                     Layout.preferredWidth: 60
@@ -145,7 +144,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // Status
             Text {
                 Layout.fillWidth: true
                 text: !adapter ? "▸ No bluetooth adapter"
@@ -157,7 +155,6 @@ Item {
                 font.letterSpacing: 2
             }
 
-            // Devices
             Text {
                 text: "DEVICES"
                 color: page.nRed
@@ -242,7 +239,6 @@ Item {
                             }
                         }
 
-                        // Forget
                         Rectangle {
                             visible: page.paired(modelData)
                             Layout.preferredWidth: 32
