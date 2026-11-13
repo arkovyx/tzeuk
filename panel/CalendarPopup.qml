@@ -4,6 +4,8 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 
+import "../themes"
+
 PanelWindow {
     id: win
     property bool opened: false
@@ -28,12 +30,13 @@ PanelWindow {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     onOpenedChanged: {
         if (opened) {
@@ -73,7 +76,6 @@ PanelWindow {
         month = ((m % 12) + 12) % 12
     }
 
-    // 42 days starting from the Monday on/before the 1st
     readonly property var days: {
         var first = new Date(year, month, 1)
         var start = new Date(year, month, 1 - ((first.getDay() + 6) % 7))
@@ -90,7 +92,6 @@ PanelWindow {
         onClicked: win.closeRequested()
     }
 
-    // ===== Calendar card =====
     Rectangle {
         id: calendar
         anchors.horizontalCenter: parent.horizontalCenter
@@ -126,7 +127,6 @@ PanelWindow {
             anchors.rightMargin: 24
             spacing: 12
 
-            // ===== Clock — HH:mm:ss all same size =====
             Row {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 62
@@ -150,7 +150,6 @@ PanelWindow {
                 }
             }
 
-            // ===== Date line =====
             Row {
                 spacing: 10
                 Rectangle {
@@ -187,7 +186,6 @@ PanelWindow {
                 }
             }
 
-            // ===== Red divider =====
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 2
@@ -196,7 +194,6 @@ PanelWindow {
                 opacity: 0.4
             }
 
-            // ===== Month navigation =====
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -280,7 +277,6 @@ PanelWindow {
                 }
             }
 
-            // ===== Weekday header (7 cols, aligned with dates) =====
             GridLayout {
                 Layout.fillWidth: true
                 columns: 7
@@ -308,7 +304,6 @@ PanelWindow {
                 }
             }
 
-            // ===== Days grid (7 cols) =====
             GridLayout {
                 Layout.fillWidth: true
                 columns: 7
