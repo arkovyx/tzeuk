@@ -155,4 +155,70 @@ Singleton {
     readonly property string iSearch:    cp(0xF0349)   // magnify
     readonly property string iClose:     cp(0xF0156)   // close
     readonly property string iBuffer:    cp(0xF018F)   // content-copy
+
+    // ═══════════════════════════════════════════════
+    // MATUGEN
+    // ═══════════════════════════════════════════════
+    readonly property string matugenFile: Quickshell.env("HOME") + "/.cache/matugen/tzeuk.json"
+
+    FileView {
+        id: matugenView
+        path: root.matugenFile
+        watchChanges: true
+        onFileChanged: reload()
+
+        adapter: JsonAdapter {
+            id: mat
+            property string image: ""
+            property color primary: "#ffffff"
+            property color primaryFg: "#000000"
+            property color primaryContainer: "#1a1a1a"
+            property color primaryContainerFg: "#ffffff"
+            property color secondary: "#bbbbbb"
+            property color secondaryFg: "#000000"
+            property color secondaryContainer: "#202020"
+            property color secondaryContainerFg: "#ffffff"
+            property color tertiary: "#d71921"
+            property color tertiaryFg: "#ffffff"
+            property color tertiaryContainer: "#2a0a0d"
+            property color tertiaryContainerFg: "#ffffff"
+            property color surface: "#111111"
+            property color surfaceLowest: "#000000"
+            property color surfaceLow: "#0a0a0a"
+            property color surfaceContainer: "#141414"
+            property color surfaceHigh: "#1e1e1e"
+            property color surfaceHighest: "#282828"
+            property color surfaceFg: "#ffffff"
+            property color surfaceVariantFg: "#aaaaaa"
+            property color outline: "#555555"
+            property color outlineVariant: "#333333"
+            property color err: "#d71921"
+            property color errFg: "#ffffff"
+        }
+    }
+
+    readonly property color m3Primary: mat.primary
+    readonly property color m3OnPrimary: mat.primaryFg
+    readonly property color m3PrimaryContainer: mat.primaryContainer
+    readonly property color m3OnPrimaryContainer: mat.primaryContainerFg
+    readonly property color m3Secondary: mat.secondary
+    readonly property color m3OnSecondary: mat.secondaryFg
+    readonly property color m3SecondaryContainer: mat.secondaryContainer
+    readonly property color m3OnSecondaryContainer: mat.secondaryContainerFg
+    readonly property color m3Tertiary: mat.tertiary
+    readonly property color m3OnTertiary: mat.tertiaryFg
+    readonly property color m3TertiaryContainer: mat.tertiaryContainer
+    readonly property color m3OnTertiaryContainer: mat.tertiaryContainerFg
+    readonly property color m3Surface: mat.surface
+    readonly property color m3SurfaceLowest: mat.surfaceLowest
+    readonly property color m3SurfaceLow: mat.surfaceLow
+    readonly property color m3SurfaceContainer: mat.surfaceContainer
+    readonly property color m3SurfaceHigh: mat.surfaceHigh
+    readonly property color m3SurfaceHighest: mat.surfaceHighest
+    readonly property color m3OnSurface: mat.surfaceFg
+    readonly property color m3OnSurfaceVariant: mat.surfaceVariantFg
+    readonly property color m3Outline: mat.outline
+    readonly property color m3OutlineVariant: mat.outlineVariant
+    readonly property color m3Err: mat.err
+    readonly property color m3OnErr: mat.errFg
 }
