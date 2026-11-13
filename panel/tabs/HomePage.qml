@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Services.Pipewire
 import Quickshell.Bluetooth
 import "../../services"
+import "../../themes"
 
 Item {
     id: page
@@ -17,12 +18,13 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     readonly property var audio: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
     readonly property var ad: Bluetooth.defaultAdapter
@@ -53,7 +55,6 @@ Item {
             width: parent.width
             spacing: 20
 
-            // ===== HEADER =====
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 24
@@ -96,13 +97,14 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            // ===== DOT RULE =====
             Canvas {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 6
+                property color dotColor: Theme.fg
+                onDotColorChanged: requestPaint()
                 onPaint: {
                     var ctx = getContext("2d")
-                    ctx.fillStyle = "rgba(255,255,255,0.5)"
+                    ctx.fillStyle = Qt.rgba(dotColor.r, dotColor.g, dotColor.b, 0.5)
                     for (var x = 2; x < width; x += 8) {
                         ctx.beginPath()
                         ctx.arc(x, 3, 1.2, 0, Math.PI * 2)
@@ -111,7 +113,6 @@ Item {
                 }
             }
 
-            // ===== MEDIA PLAYER =====
             Rectangle {
                 Layout.fillWidth: true
                 visible: page.hasMedia
@@ -184,7 +185,7 @@ Item {
                                 radius: width / 2
                                 color: "transparent"
                                 border.width: 1
-                                border.color: "#ffffff"
+                                border.color: page.nWhite
                                 opacity: 0.1
                                 z: 3
                             }
@@ -195,7 +196,7 @@ Item {
                                 radius: width / 2
                                 color: "transparent"
                                 border.width: 1
-                                border.color: "#ffffff"
+                                border.color: page.nWhite
                                 opacity: 0.1
                                 z: 3
                             }
@@ -486,7 +487,6 @@ Item {
                 }
             }
 
-            // ===== BRIGHTNESS =====
             Text {
                 text: "BRIGHTNESS"
                 color: page.nText
@@ -548,7 +548,6 @@ Item {
                 }
             }
 
-            // ===== TOGGLES =====
             Text {
                 text: "TOGGLES"
                 color: page.nText
@@ -617,7 +616,6 @@ Item {
                 }
             }
 
-            // ===== POWER =====
             Text {
                 text: "POWER"
                 color: page.nText
