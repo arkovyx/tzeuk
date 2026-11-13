@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../services"
+import "../themes"
 
 PanelWindow {
     id: win
@@ -16,12 +17,13 @@ PanelWindow {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     visible: Notifs.popups.length > 0 && !suppressed
     anchors { top: true; right: true }
@@ -50,7 +52,6 @@ PanelWindow {
                 border.width: 1
                 border.color: modelData.n.urgency === 2 ? win.nRed : win.nDim
 
-                // Red indicator
                 Rectangle {
                     width: 3
                     height: parent.height - 16
