@@ -10,6 +10,7 @@ import "launcher"
 import "glyphs"
 import "wallpicker"
 import "powermenu"
+import "themes"
 
 ShellRoot {
     id: root
@@ -104,15 +105,25 @@ ShellRoot {
     }
 
     MediaPopup {
-    opened: root.mediaOpen
-    onCloseRequested: root.mediaOpen = false
-}
+        opened: root.mediaOpen
+        onCloseRequested: root.mediaOpen = false
+    }
 
     IpcHandler {
         target: "panel"
-        function toggle(): void { /* ... */ }
-        function show(name: string): void { /* ... */ }
-        function close(): void { /* ... */ }
+        function toggle(): void {
+            root.panelOpen = !root.panelOpen
+            if (root.panelOpen) {
+                root.panelScreen = root.focusedScreen()
+                root.activeTab = "home"
+            }
+        }
+        function show(name: string): void {
+            root.activeTab = name
+            root.panelScreen = root.focusedScreen()
+            root.panelOpen = true
+        }
+        function close(): void { root.panelOpen = false }
     }
 
     IpcHandler {
@@ -134,5 +145,12 @@ ShellRoot {
         function toggle(): void { root.mediaOpen = !root.mediaOpen }
         function open(): void   { root.mediaOpen = true }
         function close(): void  { root.mediaOpen = false }
+    }
+
+    IpcHandler {
+        target: "theme"
+        function toggle(): void { Theme.toggleTheme() }
+        function matugen(): void { Theme.setMatugenMode(true) }
+        function nothing(): void { Theme.setMatugenMode(false) }
     }
 }
