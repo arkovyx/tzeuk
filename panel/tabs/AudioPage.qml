@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
+import "../../themes"
 
 Item {
     id: page
@@ -15,12 +16,13 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     readonly property var sink: Pipewire.defaultAudioSink ? Pipewire.defaultAudioSink.audio : null
     readonly property var streams: Pipewire.nodes.values.filter(function(n) {
@@ -28,7 +30,6 @@ Item {
             && n.properties["media.class"] === "Stream/Output/Audio"
     })
 
-    // ── MIC STATE (wpctl-driven, reliable regardless of Pipewire property) ──
     property bool micAvailable: false
     property bool micMuted: true
     property real micVolume: 0
@@ -84,7 +85,6 @@ Item {
         micCooldown.restart()
     }
 
-    // ── Slider component ──
     component NothingSlider: ColumnLayout {
         id: slider
         property string label: ""
@@ -231,7 +231,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // OUTPUT
             Text {
                 text: "OUTPUT"
                 color: page.nRed
@@ -252,7 +251,6 @@ Item {
                 onIconClicked: if (sink) sink.muted = !sink.muted
             }
 
-            // INPUT (mic — wpctl-driven)
             Text {
                 text: "INPUT" + (page.micAvailable ? "" : " · NO SOURCE")
                 color: page.micAvailable ? page.nRed : page.nText
@@ -278,7 +276,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim; Layout.topMargin: 8 }
 
-            // APPLICATIONS
             Text {
                 text: "APPLICATIONS"
                 color: page.nRed
