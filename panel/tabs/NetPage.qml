@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../services"
+import "../../themes"
 
 Item {
     id: page
@@ -13,12 +14,13 @@ Item {
     readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
     readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
 
-    readonly property color nBlack: "#000000"
-    readonly property color nWhite: "#ffffff"
-    readonly property color nRed: "#d71921"
-    readonly property color nDim: "#2a2a2a"
-    readonly property color nSurface: "#0d0d0d"
-    readonly property color nText: "#666666"
+    // ═══ dynamic palette ═══
+    readonly property color nBlack: Theme.bg
+    readonly property color nWhite: Theme.fg
+    readonly property color nRed: Theme.accent
+    readonly property color nDim: Theme.line
+    readonly property color nSurface: Theme.surfaceHi
+    readonly property color nText: Theme.nText
 
     Component.onCompleted: Net.active = true
     Component.onDestruction: Net.active = false
@@ -35,7 +37,6 @@ Item {
             width: parent.width
             spacing: 20
 
-            // Header
             RowLayout {
                 Layout.fillWidth: true
 
@@ -58,7 +59,6 @@ Item {
 
                 Item { Layout.fillWidth: true }
 
-                // Status indicator
                 Row {
                     spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
@@ -87,7 +87,6 @@ Item {
                     }
                 }
 
-                // Scan button
                 Rectangle {
                     Layout.preferredWidth: 40
                     Layout.preferredHeight: 40
@@ -112,7 +111,6 @@ Item {
                     }
                 }
 
-                // WiFi toggle
                 Rectangle {
                     Layout.preferredWidth: 60
                     Layout.preferredHeight: 40
@@ -142,7 +140,6 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: page.nDim }
 
-            // Wired devices
             ColumnLayout {
                 Layout.fillWidth: true
                 visible: Net.wiredDevs.length > 0
@@ -227,7 +224,6 @@ Item {
                 }
             }
 
-            // Error
             Rectangle {
                 Layout.fillWidth: true
                 visible: Net.message !== ""
@@ -248,7 +244,6 @@ Item {
                 }
             }
 
-            // Wireless
             Text {
                 text: "NETWORKS"
                 color: page.nRed
@@ -290,7 +285,6 @@ Item {
                         anchors.margins: 14
                         spacing: 16
 
-                        // Signal bars
                         Row {
                             spacing: 2
                             anchors.verticalCenter: parent.verticalCenter
@@ -340,7 +334,6 @@ Item {
                             font.bold: true
                         }
 
-                        // Action
                         Rectangle {
                             visible: modelData.inUse
                             Layout.preferredWidth: 32
@@ -369,7 +362,6 @@ Item {
                 }
             }
 
-            // Password prompt
             Rectangle {
                 Layout.fillWidth: true
                 visible: Net.askFor !== ""
