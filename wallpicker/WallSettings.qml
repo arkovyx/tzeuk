@@ -10,13 +10,12 @@ QtObject {
         return raw.replace(/\/+$/, "");
     }
 
-    readonly property string cacheDir: homeDir + "/.cache/tzeuk-wallpicker"
+    readonly property string cacheDir: homeDir + "/.cache/tzeuk/wallpicker"
     readonly property string thumbDir: cacheDir + "/thumbs"
 
     readonly property var imageExtensions: ["jpg", "jpeg", "png", "webp", "gif", "bmp", "avif"]
 
     property string wallpaperBackend: "auto"
-    property string colorBackend: "matugen"
 
     readonly property var setAnimations: ["fade", "wipe", "wave", "grow", "center", "outer", "any"]
     property real transitionDuration: 0.85
