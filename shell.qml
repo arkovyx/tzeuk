@@ -24,9 +24,7 @@ ShellRoot {
     property bool powerOpen: false
     property bool mediaOpen: false
 
-    PwObjectTracker {
-        objects: Pipewire.nodes.values
-    }
+    PwObjectTracker { objects: Pipewire.nodes.values }
 
     function focusedScreen() {
         var screens = Quickshell.screens
@@ -34,9 +32,7 @@ ShellRoot {
         var focused = Hyprland.focusedMonitor
         if (focused && focused.name) {
             for (var i = 0; i < screens.length; i++) {
-                if (screens[i].name === focused.name) {
-                    return screens[i]
-                }
+                if (screens[i].name === focused.name) return screens[i]
             }
         }
         return screens[0]
@@ -80,14 +76,10 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
-        NotifPopup {
-            suppressed: root.panelOpen && screen === root.panelScreen
-        }
+        NotifPopup { suppressed: root.panelOpen && screen === root.panelScreen }
     }
 
-    Launcher {
-        id: launcher
-    }
+    Launcher { id: launcher }
 
     CharPicker {
         opened: root.glyphsOpen
@@ -95,9 +87,7 @@ ShellRoot {
         onCloseRequested: root.glyphsOpen = false
     }
 
-    WallPicker {
-        id: wallPicker
-    }
+    WallPicker { id: wallPicker }
 
     PowerMenu {
         opened: root.powerOpen
@@ -145,12 +135,5 @@ ShellRoot {
         function toggle(): void { root.mediaOpen = !root.mediaOpen }
         function open(): void   { root.mediaOpen = true }
         function close(): void  { root.mediaOpen = false }
-    }
-
-    IpcHandler {
-        target: "theme"
-        function toggle(): void { Theme.toggleTheme() }
-        function matugen(): void { Theme.setMatugenMode(true) }
-        function nothing(): void { Theme.setMatugenMode(false) }
     }
 }
