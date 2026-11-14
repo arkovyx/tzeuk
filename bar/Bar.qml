@@ -20,13 +20,10 @@ PanelWindow {
     color: "transparent"
     WlrLayershell.namespace: "tzeuk-bar-nothing"
 
-    FontLoader { id: fDoto; source: "../fonts/Doto.ttf" }
-    FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
-    FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
 
-    readonly property string fDotStr: fDoto.name !== "" ? fDoto.name : "monospace"
-    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
-    readonly property string fGroteskStr: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+    readonly property string fDotStr: Theme.fontDoto !== "" ? Theme.fontDoto : "monospace"
+    readonly property string fMonoStr: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
+    readonly property string fGroteskStr: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
 
     // ═══ dynamic palette ═══
     readonly property color nBlack: Theme.bg
