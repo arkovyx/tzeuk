@@ -13,15 +13,10 @@ Scope {
 
     WallSettings { id: settings }
 
-    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("../fonts/Doto.ttf") }
-    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Regular.otf") }
-    FontLoader { id: fBoldLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Bold.otf") }
-    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("../fonts/SpaceMono-Regular.ttf") }
-
-    readonly property string fDot:  fDotLoader.name  !== "" ? fDotLoader.name  : "monospace"
-    readonly property string fSans: fSansLoader.name !== "" ? fSansLoader.name : "sans-serif"
-    readonly property string fBold: fBoldLoader.name !== "" ? fBoldLoader.name : "sans-serif"
-    readonly property string fMono: fMonoLoader.name !== "" ? fMonoLoader.name : "monospace"
+    readonly property string fDot:  Theme.fontDoto !== "" ? Theme.fontDoto : "monospace"
+    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
+    readonly property string fBold: Theme.fontBold !== "" ? Theme.fontBold : "sans-serif"
+    readonly property string fMono: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
 
     readonly property color cBlack: Theme.bg
     readonly property color cWhite: Theme.fg
@@ -30,7 +25,7 @@ Scope {
     function pad2(n) { return String(n).padStart(2, "0") }
 
     // ── State ──
-    property string viewMode: "all"       // "all" | "folders"
+    property string viewMode: "all"
     property string currentPath: ""
     property string filterQuery: ""
     property var allWallpapers: []
@@ -252,16 +247,15 @@ done
 
     // ── Apply ──
     function applyWallpaper(item) {
-    if (!item || item.type !== "wallpaper") return
+        if (!item || item.type !== "wallpaper") return
 
-    const script = `
+        const script = `
 WALL="$1"
 CACHE_DIR="$2"
 DUR="$3"
 FPS="$4"
 BACKEND_PREF="$5"
-COLOR_PREF="$6"
-TYPES_STR="$7"
+TYPES_STR="$6"
 
 mkdir -p "$CACHE_DIR"
 printf '%s' "$WALL" > "$CACHE_DIR/last_wallpaper"
@@ -274,6 +268,7 @@ exec >> "$LOG" 2>&1
 echo ""
 echo "=== $(date '+%F %T') ==="
 echo "WALL=$WALL"
+echo "TYPES=$TYPES_STR"
 
 BACKEND="$BACKEND_PREF"
 if [ "$BACKEND" = "auto" ] || [ -z "$BACKEND" ]; then
@@ -286,7 +281,8 @@ fi
 echo "BACKEND=$BACKEND"
 
 pick_transition() {
-    local arr=( $TYPES_STR )
+    local -a arr
+    read -r -a arr <<< "$TYPES_STR"
     local n=\${#arr[@]}
     if [ "$n" -eq 0 ]; then echo "fade"; return; fi
     local idx=$((RANDOM % n))
@@ -299,7 +295,7 @@ case "$BACKEND" in
         T=$(pick_transition)
         echo "TRANSITION=$T"
         if ! awww img --transition-type "$T" --transition-duration "$DUR" --transition-fps "$FPS" "$WALL"; then
-            echo "awww transition failed, trying plain img"
+            echo "awww transition failed, trying plain"
             awww img "$WALL" || echo "awww FAILED"
         fi
         ;;
@@ -308,7 +304,7 @@ case "$BACKEND" in
         T=$(pick_transition)
         echo "TRANSITION=$T"
         if ! swww img --transition-type "$T" --transition-duration "$DUR" --transition-fps "$FPS" "$WALL"; then
-            echo "swww transition failed, trying plain img"
+            echo "swww transition failed, trying plain"
             swww img "$WALL" || echo "swww FAILED"
         fi
         ;;
@@ -336,32 +332,20 @@ case "$BACKEND" in
         ;;
 esac
 
-CB="$COLOR_PREF"
-if [ "$CB" = "auto" ] || [ -z "$CB" ]; then
-    if command -v wal >/dev/null 2>&1; then CB="pywal"
-    elif command -v matugen >/dev/null 2>&1; then CB="matugen"
-    else CB="none"
-    fi
-fi
-echo "COLOR=$CB"
-if [ "$CB" = "pywal" ]; then
-    wal -i "$WALL" -n -q || echo "pywal FAILED"
-elif [ "$CB" = "matugen" ]; then
-        matugen image -i 0 --mode dark "$WALL" || echo "matugen FAILED"
-fi
+iris-tzeuk "$WALL" 2>/dev/null || echo "iris-tzeuk FAILED"
 `
-    Quickshell.execDetached([
-        "bash", "-c", script, "apply",
-        item.path,
-        settings.cacheDir,
-        String(settings.transitionDuration),
-        String(settings.transitionFps),
-        settings.wallpaperBackend,
-        settings.colorBackend,
-        settings.setAnimations.join(" ")
-    ])
-    shown = false
-}
+        Quickshell.execDetached([
+            "bash", "-c", script, "apply",
+            item.path,
+            settings.cacheDir,
+            String(settings.transitionDuration),
+            String(settings.transitionFps),
+            settings.wallpaperBackend,
+            settings.setAnimations.join(" ")
+        ])
+        shown = false
+    }
+
     // ── Lifecycle ──
     onShownChanged: {
         if (shown) {
@@ -434,7 +418,6 @@ fi
                         anchors.bottomMargin: 10
                         spacing: 12
 
-                        // view-mode toggle pill (hover effect)
                         Rectangle {
                             id: viewToggle
                             width: 86; height: 26; radius: 13
@@ -509,7 +492,6 @@ fi
                         font.pixelSize: 20
                     }
 
-                    // mode badge — always on top
                     Rectangle {
                         id: modeBadge
                         z: 101
@@ -587,7 +569,6 @@ fi
                         Keys.onPressed: (event) => picker.handleKey(event)
                     }
 
-                    // whole-box click → enter insert (NORMAL only)
                     MouseArea {
                         id: searchBoxHover
                         z: 100
@@ -602,7 +583,7 @@ fi
                     }
                 }
 
-                // ── BREADCRUMB (with hover) ──
+                // ── BREADCRUMB ──
                 Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: (picker.viewMode === "folders") ? 18 : 0
@@ -649,7 +630,7 @@ fi
                     }
                 }
 
-                // ── DOT RULE ──
+                // ── DOT RULE TOP ──
                 Canvas {
                     id: ruleTop
                     Layout.fillWidth: true
@@ -767,7 +748,6 @@ fi
                                         }
                                     }
 
-                                    // folder overlay — lifts on hover to reveal preview
                                     Rectangle {
                                         visible: dRoot.isFolder
                                         anchors.fill: parent
@@ -892,12 +872,11 @@ fi
         }
     }
 
-    // ── Keyboard (vim) ──
+    // ── Keyboard ──
     function handleKey(event) {
         const shift = (event.modifiers & Qt.ShiftModifier) !== 0
         event.accepted = true
 
-        // ── Shared ──
         if (event.key === Qt.Key_Left) {
             if (carousel.currentIndex > 0) carousel.currentIndex--
             return
@@ -923,7 +902,6 @@ fi
             return
         }
 
-        // ── INSERT ──
         if (mode === "insert") {
             if (event.key === Qt.Key_Escape) {
                 mode = "normal"
@@ -933,7 +911,6 @@ fi
             return
         }
 
-        // ── NORMAL ──
         switch (event.key) {
         case Qt.Key_Escape:
             handleEscape()
