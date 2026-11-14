@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "../themes"
 
 PanelWindow {
     id: win
@@ -24,12 +25,9 @@ PanelWindow {
     readonly property string iBuffer: cp(0xF018F)
 
     // ═══════════════ Fonts ═══════════════
-    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("../fonts/Doto.ttf") }
-    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Regular.otf") }
-    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("../fonts/SpaceMono-Regular.ttf") }
-    readonly property string fDot:  fDotLoader.name  !== "" ? fDotLoader.name  : "monospace"
-    readonly property string fSans: fSansLoader.name !== "" ? fSansLoader.name : "sans-serif"
-    readonly property string fMono: fMonoLoader.name !== "" ? fMonoLoader.name : "monospace"
+    readonly property string fDot:  Theme.fontDoto  !== "" ? Theme.fontDoto  : "monospace"
+    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
+    readonly property string fMono: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
     readonly property string fNf:   "JetBrainsMono Nerd Font"
     readonly property string fEmoji:"Noto Color Emoji"
 
@@ -54,7 +52,7 @@ PanelWindow {
 
     FileView {
         id: dataFile
-        path: Quickshell.env("HOME") + "/.config/quickshell/tzeuk/chars.json"
+        path: Quickshell.env("HOME") + "/.config/quickshell/tzeuk/data/chars.json"
         printErrors: true
         onLoaded: {
             try {
