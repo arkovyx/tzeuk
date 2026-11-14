@@ -9,13 +9,10 @@ PanelWindow {
     id: win
     property bool suppressed: false
 
-    FontLoader { id: fDoto; source: "../fonts/Doto.ttf" }
-    FontLoader { id: fMono; source: "../fonts/SpaceMono-Regular.ttf" }
-    FontLoader { id: fGrotesk; source: "../fonts/SpaceGrotesk-Regular.otf" }
 
-    readonly property string fDot: fDoto.name !== "" ? fDoto.name : "monospace"
-    readonly property string fMonoStr: fMono.name !== "" ? fMono.name : "monospace"
-    readonly property string fSans: fGrotesk.name !== "" ? fGrotesk.name : "sans-serif"
+    readonly property string fDot: Theme.fontDoto !== "" ? Theme.fontDoto : "monospace"
+    readonly property string fMonoStr: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
+    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
 
     // ═══ dynamic palette ═══
     readonly property color nBlack: Theme.bg
