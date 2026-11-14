@@ -4,6 +4,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import "../themes"
 
 Scope {
     id: root
@@ -28,15 +29,11 @@ Scope {
     function pad2(n) { return String(n).padStart(2, "0") }
 
     // ───────────────────────── Fonts ─────────────────────────
-    FontLoader { id: fDotLoader;  source: Qt.resolvedUrl("../fonts/Doto.ttf") }
-    FontLoader { id: fSansLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Regular.otf") }
-    FontLoader { id: fBoldLoader; source: Qt.resolvedUrl("../fonts/SpaceGrotesk-Bold.otf") }
-    FontLoader { id: fMonoLoader; source: Qt.resolvedUrl("../fonts/SpaceMono-Regular.ttf") }
 
-    readonly property string fDot:  fDotLoader.name  !== "" ? fDotLoader.name  : "monospace"
-    readonly property string fSans: fSansLoader.name !== "" ? fSansLoader.name : "sans-serif"
-    readonly property string fBold: fBoldLoader.name !== "" ? fBoldLoader.name : "sans-serif"
-    readonly property string fMono: fMonoLoader.name !== "" ? fMonoLoader.name : "monospace"
+    readonly property string fDot:  Theme.fontDoto  !== "" ? Theme.fontDoto  : "monospace"
+    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
+    readonly property string fBold: Theme.fontBold !== "" ? Theme.fontBold : "sans-serif"
+    readonly property string fMono: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
