@@ -7,132 +7,92 @@ import Quickshell.Hyprland
 Singleton {
     id: root
 
-    // ═══ FONTS ═══
-    readonly property string font: "JetBrainsMono Nerd Font"
-    readonly property string sans: "JetBrainsMono Nerd Font"
+    readonly property string fontDoto: "Doto"
+    readonly property string fontSans: "Space Grotesk"
+    readonly property string fontBold: "Space Grotesk"
+    readonly property string fontMono: "Space Mono"
+    readonly property string font: fontMono
+    readonly property string sans: fontSans
+    readonly property string ui: sans
+    readonly property string nf: "JetBrainsMono Nerd Font"
 
-    // ═══ THEME MODE (persisted as plain text: "nothing" | "matugen") ═══
-    readonly property string themeStateFile: Quickshell.env("HOME") + "/.config/quickshell/tzeuk/theme.state"
-
+    // ═══ IRIS SOURCE ═══
     FileView {
-        id: themeStateView
-        path: root.themeStateFile
-        blockLoading: true
-        watchChanges: true
-        onLoaded: root._applyState(text())
-        onFileChanged: root._applyState(text())
-    }
-
-    property bool matugenMode: false
-
-    function _applyState(content) {
-        const c = String(content || "").trim()
-        if (c === "matugen") root.matugenMode = true
-        else if (c === "nothing") root.matugenMode = false
-    }
-
-    function _persistState() {
-        const val = root.matugenMode ? "matugen" : "nothing"
-        const home = Quickshell.env("HOME")
-        Quickshell.execDetached(["bash", "-c",
-            "mkdir -p '" + home + "/.config/quickshell/tzeuk' && printf '%s' '" + val + "' > '" + root.themeStateFile + "'"])
-    }
-
-    function toggleTheme() {
-        root.matugenMode = !root.matugenMode
-        root._persistState()
-    }
-
-    function setMatugenMode(on) {
-        root.matugenMode = !!on
-        root._persistState()
-    }
-
-    // ═══ MATUGEN SOURCE ═══
-    FileView {
-        id: matugenView
-        path: Quickshell.env("HOME") + "/.cache/matugen/tzeuk.json"
+        id: irisView
+        path: Quickshell.env("HOME") + "/.cache/iris/colors.json"
         watchChanges: true
         onFileChanged: reload()
         adapter: JsonAdapter {
-            id: mat
+            id: iris
             property string image: ""
-            property color primary: "#d71921"
-            property color primaryFg: "#ffffff"
-            property color primaryContainer: "#3a0f13"
-            property color primaryContainerFg: "#ffffff"
-            property color secondary: "#aaaaaa"
-            property color secondaryFg: "#000000"
-            property color secondaryContainer: "#202020"
-            property color secondaryContainerFg: "#ffffff"
-            property color tertiary: "#d71921"
-            property color tertiaryFg: "#ffffff"
-            property color tertiaryContainer: "#2a0a0d"
-            property color tertiaryContainerFg: "#ffffff"
-            property color surface: "#000000"
-            property color surfaceLowest: "#000000"
-            property color surfaceLow: "#0a0a0a"
-            property color surfaceContainer: "#141414"
-            property color surfaceHigh: "#1e1e1e"
-            property color surfaceHighest: "#282828"
-            property color surfaceFg: "#ffffff"
-            property color surfaceVariantFg: "#aaaaaa"
-            property color outline: "#555555"
-            property color outlineVariant: "#333333"
-            property color err: "#d71921"
-            property color errFg: "#ffffff"
+            property color bg: "#000000"
+            property color fg: "#ffffff"
+            property color accent: "#d71921"
+            property color surface: "#0a0a0a"
+            property color dim: "#666666"
+            property color red: "#d71921"
+            property color green: "#00ff88"
+            property color yellow: "#ffcc00"
+            property color syntax_keyword: "#d71921"
+            property color syntax_string: "#ffffff"
+            property color syntax_func: "#d71921"
+            property color syntax_type: "#d71921"
+            property color syntax_const: "#d71921"
+            property color syntax_comment: "#666666"
+            property color syntax_param: "#d71921"
+            property color syntax_operator: "#d71921"
         }
     }
 
-    // ═══ DYNAMIC PALETTE ═══
-    readonly property color bg: matugenMode ? mat.surfaceLowest : "#000000"
-    readonly property color fg: matugenMode ? mat.surfaceFg : "#ffffff"
-    readonly property color accent: matugenMode ? mat.primary : "#d71921"
-    readonly property color err: matugenMode ? mat.err : "#d71921"
-    readonly property color surfaceHi: matugenMode ? mat.surfaceHigh : Qt.rgba(1, 1, 1, 0.10)
-    readonly property color line: matugenMode ? mat.outlineVariant : Qt.rgba(1, 1, 1, 0.20)
-    readonly property color dim: matugenMode ? mat.surfaceVariantFg : Qt.rgba(1, 1, 1, 0.50)
-    readonly property color barBg: matugenMode
-        ? Qt.rgba(mat.surfaceLowest.r, mat.surfaceLowest.g, mat.surfaceLowest.b, 0.85)
-        : Qt.rgba(0, 0, 0, 0.85)
+    function shiftL(color, delta) {
+        var h = color.hslHue
+        var s = color.hslSaturation
+        var l = Math.max(0, Math.min(1, color.hslLightness + delta))
+        return Qt.hsla(h, s, l, 1.0)
+    }
+
+    // ═══ CORE PALETTE ═══
+    readonly property color bg: iris.bg
+    readonly property color fg: iris.fg
+    readonly property color accent: iris.accent
+    readonly property color err: iris.red
+    readonly property color surfaceHi: iris.surface
+    readonly property color line: shiftL(iris.surface, 0.06)
+    readonly property color dim: iris.dim
+    readonly property color barBg: Qt.rgba(iris.bg.r, iris.bg.g, iris.bg.b, 0.85)
+    readonly property color nText: iris.dim
 
     readonly property color nBlack: bg
     readonly property color nWhite: fg
     readonly property color nRed: accent
     readonly property color nDim: line
     readonly property color nSurface: surfaceHi
-    readonly property color nText: dim
 
-    // ═══ M3 RAW ROLES ═══
-    readonly property color m3Primary: mat.primary
-    readonly property color m3OnPrimary: mat.primaryFg
-    readonly property color m3PrimaryContainer: mat.primaryContainer
-    readonly property color m3OnPrimaryContainer: mat.primaryContainerFg
-    readonly property color m3Secondary: mat.secondary
-    readonly property color m3OnSecondary: mat.secondaryFg
-    readonly property color m3SecondaryContainer: mat.secondaryContainer
-    readonly property color m3OnSecondaryContainer: mat.secondaryContainerFg
-    readonly property color m3Tertiary: mat.tertiary
-    readonly property color m3OnTertiary: mat.tertiaryFg
-    readonly property color m3TertiaryContainer: mat.tertiaryContainer
-    readonly property color m3OnTertiaryContainer: mat.tertiaryContainerFg
-    readonly property color m3Surface: mat.surface
-    readonly property color m3SurfaceLowest: mat.surfaceLowest
-    readonly property color m3SurfaceLow: mat.surfaceLow
-    readonly property color m3SurfaceContainer: mat.surfaceContainer
-    readonly property color m3SurfaceHigh: mat.surfaceHigh
-    readonly property color m3SurfaceHighest: mat.surfaceHighest
-    readonly property color m3OnSurface: mat.surfaceFg
-    readonly property color m3OnSurfaceVariant: mat.surfaceVariantFg
-    readonly property color m3Outline: mat.outline
-    readonly property color m3OutlineVariant: mat.outlineVariant
-    readonly property color m3Err: mat.err
-    readonly property color m3OnErr: mat.errFg
-
-    // ═══ PYwal COMPAT ═══
-    readonly property color walBg: bg
-    readonly property color walFg: fg
-    readonly property color walAccent: accent
+    // ═══ M3 (derived from iris for backwards compat) ═══
+    readonly property color m3Primary: iris.accent
+    readonly property color m3OnPrimary: iris.bg
+    readonly property color m3PrimaryContainer: shiftL(iris.surface, 0.02)
+    readonly property color m3OnPrimaryContainer: iris.fg
+    readonly property color m3Secondary: iris.dim
+    readonly property color m3OnSecondary: iris.bg
+    readonly property color m3SecondaryContainer: shiftL(iris.surface, 0.04)
+    readonly property color m3OnSecondaryContainer: iris.fg
+    readonly property color m3Tertiary: iris.syntax_keyword
+    readonly property color m3OnTertiary: iris.bg
+    readonly property color m3TertiaryContainer: shiftL(iris.surface, 0.04)
+    readonly property color m3OnTertiaryContainer: iris.fg
+    readonly property color m3Surface: iris.surface
+    readonly property color m3SurfaceLowest: iris.bg
+    readonly property color m3SurfaceLow: shiftL(iris.surface, -0.02)
+    readonly property color m3SurfaceContainer: iris.surface
+    readonly property color m3SurfaceHigh: shiftL(iris.surface, 0.04)
+    readonly property color m3SurfaceHighest: shiftL(iris.surface, 0.08)
+    readonly property color m3OnSurface: iris.fg
+    readonly property color m3OnSurfaceVariant: iris.dim
+    readonly property color m3Outline: iris.dim
+    readonly property color m3OutlineVariant: shiftL(iris.dim, -0.10)
+    readonly property color m3Err: iris.red
+    readonly property color m3OnErr: iris.bg
 
     // ═══ ICONS ═══
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
@@ -152,7 +112,6 @@ Singleton {
     readonly property string iBatCharging: cp(0xF0084)
     readonly property string iCpu: cp(0xF061A)
     readonly property string iMem: cp(0xF035B)
-
     function wifiIcon(sig) {
         return sig >= 75 ? iWifiHigh : sig >= 50 ? iWifiMed : sig >= 25 ? iWifiLow : iWifiOff
     }
@@ -160,7 +119,7 @@ Singleton {
     // ═══ LAUNCHER COMPAT ═══
     readonly property color bright: fg
     readonly property color ink: bg
-    readonly property color warn: matugenMode ? mat.tertiary : "#f5a97f"
+    readonly property color warn: iris.yellow
     readonly property color live: accent
     readonly property color mute: dim
     readonly property color fill: surfaceHi
@@ -186,9 +145,7 @@ Singleton {
         return Qt.rgba(c1.r + (c2.r - c1.r) * f, c1.g + (c2.g - c1.g) * f, c1.b + (c2.b - c1.b) * f, 1)
     }
 
-    function scaleFor(screen) {
-        return screen ? Math.max(1, screen.devicePixelRatio) : 1
-    }
+    function scaleFor(screen) { return screen ? Math.max(1, screen.devicePixelRatio) : 1 }
 
     function focusedScreen() {
         var m = Hyprland.focusedMonitor
@@ -197,22 +154,17 @@ Singleton {
         return l.length ? l[0] : null
     }
 
-    // ═══ GLYPH PICKER / PANEL ═══
-    readonly property color s1: matugenMode ? mat.surfaceLow : "#0a0a0a"
-    readonly property color s2: matugenMode ? mat.surfaceContainer : "#171717"
-    readonly property color s3: matugenMode ? mat.surfaceHighest : "#252525"
+    // ═══ PANEL / GLYPH PICKER ═══
+    readonly property color s1: shiftL(iris.surface, -0.02)
+    readonly property color s2: iris.surface
+    readonly property color s3: shiftL(iris.surface, 0.06)
     readonly property real panelAlpha: 1.0
-    readonly property color scrim: matugenMode
-        ? Qt.rgba(mat.surfaceLowest.r, mat.surfaceLowest.g, mat.surfaceLowest.b, 0.7)
-        : "#000000b3"
-    readonly property color grey: matugenMode ? mat.outline : "#b0b0b0"
-    readonly property string ui: sans
-    readonly property string nf: font
+    readonly property color scrim: Qt.rgba(iris.bg.r, iris.bg.g, iris.bg.b, 0.7)
+    readonly property color grey: iris.dim
     readonly property int t: move
     readonly property var glide: settle
     function fade(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
 
-    // ═══ PICKER ICONS ═══
     readonly property string iGrid: cp(0xF0558)
     readonly property string iHistory: cp(0xF02DA)
     readonly property string iEmoji: cp(0xF0785)
