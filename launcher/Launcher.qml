@@ -9,26 +9,23 @@ import "../themes"
 Scope {
     id: root
 
-    // ───────────────────────── Config ─────────────────────────
-    property bool shown: false                  // visible on spawn
-    property bool quitOnClose: false           // true when run via `qs -p`
-    property bool useStub: false               // true = stubApps instead of .desktop files
-    property var terminal: ["foot", "-e"]      // used for Terminal=true apps
-    property string mode: "insert"             // "insert" | "normal"
+    property bool shown: false
+    property bool quitOnClose: false
+    property bool useStub: false
+    property var terminal: ["foot", "-e"]
+    property string mode: "insert"
 
-    readonly property int lines: 10            // visible rows
+    readonly property int lines: 10
     readonly property int rowH: 40
     readonly property int winW: 460
     readonly property int pad: 20
 
-    // ───────────────────────── Palette (Nothing) ─────────────────────────
-    readonly property color cBlack: "#000000"
-    readonly property color cWhite: "#FFFFFF"
-    readonly property color cRed: "#D71921"
-    function dim(a) { return Qt.rgba(1, 1, 1, a) }
+    // ═══ pywal-driven palette ═══
+    readonly property color cBlack: Theme.bg
+    readonly property color cWhite: Theme.fg
+    readonly property color cRed: Theme.accent
+    function dim(a) { return Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, a) }
     function pad2(n) { return String(n).padStart(2, "0") }
-
-    // ───────────────────────── Fonts ─────────────────────────
 
     readonly property string fDot:  Theme.fontDoto  !== "" ? Theme.fontDoto  : "monospace"
     readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
@@ -37,8 +34,6 @@ Scope {
 
     SystemClock { id: clock; precision: SystemClock.Minutes }
 
-    // ───────────────────────── Backend ─────────────────────────
-    // Run a shell command fully detached.
     function sh(cmd) { Quickshell.execDetached(["setsid", "-f", "sh", "-c", cmd]) }
 
     function baseName(p) {
@@ -46,7 +41,6 @@ Scope {
         return i >= 0 ? p.substring(i + 1) : p
     }
 
-    // Launch a .desktop entry (honours Terminal=true via `terminal`).
     function runEntry(e) {
         let cmd = e.command ? Array.from(e.command) : []
         if (cmd.length === 0) { e.execute(); return }
@@ -56,7 +50,6 @@ Scope {
         Quickshell.execDetached(spec)
     }
 
-    // Executables found in $PATH (fuzzel's list-executables-in-path). Rescanned on open.
     property var pathBins: []
     Process {
         id: pathScan
@@ -68,14 +61,12 @@ Scope {
         }
     }
 
-    // Hand-written entries (useStub) / template for custom sources.
     property var stubApps: [
         { kind: "app", name: "Terminal", sub: "foot",    icon: "utilities-terminal",  haystack: "terminal shell",  launch: () => root.sh("foot") },
         { kind: "app", name: "Browser",  sub: "librewolf", icon: "firefox",             haystack: "web internet",    launch: () => root.sh("librewolf") },
         { kind: "app", name: "Files",    sub: "pcmanfm",  icon: "system-file-manager", haystack: "file manager",    launch: () => root.sh("pcmanfm") }
     ]
 
-    // Default backend: desktop entries first, then PATH executables not already covered.
     function loadApps() {
         if (useStub) return stubApps
         const entries = DesktopEntries.applications.values
@@ -109,7 +100,6 @@ Scope {
         return out
     }
 
-    // ───────────────────────── Search ─────────────────────────
     property string query: ""
     property var allApps: loadApps()
     readonly property var results: filterApps(allApps, query)
@@ -130,12 +120,12 @@ Scope {
         else if (n.includes(q)) s = 400
         else if (app.haystack && app.haystack.includes(q)) s = 200
         else if (fuzzy(n, q)) s = 100
-        return (s > 0 && app.kind === "bin") ? s - 1 : s     // apps win ties
+        return (s > 0 && app.kind === "bin") ? s - 1 : s
     }
 
     function filterApps(apps, q) {
         const t = q.trim()
-        if (t === "") return apps.filter(a => a.kind === "app")   // empty prompt: apps only
+        if (t === "") return apps.filter(a => a.kind === "app")
 
         const lq = t.toLowerCase()
         const hits = apps
@@ -146,7 +136,6 @@ Scope {
                          || a.app.name.localeCompare(b.app.name))
             .map(x => x.app)
 
-        // Always offer the typed text as a command.
         hits.push({ kind: "cmd", name: t, sub: "RUN COMMAND", icon: "", haystack: "",
                     launch: () => root.sh(t) })
         return hits
@@ -155,7 +144,6 @@ Scope {
     onQueryChanged: list.currentIndex = 0
     onResultsChanged: list.currentIndex = Math.min(list.currentIndex, Math.max(0, results.length - 1))
 
-    // ───────────────────────── Actions ─────────────────────────
     function close() {
         shown = false
         if (quitOnClose) Qt.quit()
@@ -178,8 +166,8 @@ Scope {
     function move(d) {
         const n = results.length
         if (n === 0) return
-        if (Math.abs(d) === 1) list.currentIndex = (list.currentIndex + d + n) % n   // wrap
-        else jump(list.currentIndex + d)                                             // clamp
+        if (Math.abs(d) === 1) list.currentIndex = (list.currentIndex + d + n) % n
+        else jump(list.currentIndex + d)
     }
 
     function launchCurrent() {
@@ -196,13 +184,11 @@ Scope {
         close()
     }
 
-    // Central key handling for both vim modes.
     function handleKey(event) {
         const ctrl = (event.modifiers & Qt.ControlModifier) !== 0
         const shift = (event.modifiers & Qt.ShiftModifier) !== 0
         event.accepted = true
 
-        // Shared by both modes
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             if (shift) runRaw(); else launchCurrent()
             return
@@ -216,11 +202,10 @@ Scope {
             if (event.key === Qt.Key_Escape || (ctrl && event.key === Qt.Key_BracketLeft)) { mode = "normal"; return }
             if (event.key === Qt.Key_Tab)     { move(1); return }
             if (event.key === Qt.Key_Backtab) { move(-1); return }
-            event.accepted = false              // let TextInput type
+            event.accepted = false
             return
         }
 
-        // NORMAL mode: every other key is swallowed
         if (ctrl) {
             if (event.key === Qt.Key_D) move(root.lines / 2)
             else if (event.key === Qt.Key_U) move(-root.lines / 2)
@@ -235,11 +220,10 @@ Scope {
         }
     }
 
-    // Paints a dot-matrix strip onto a Canvas.
     function paintDots(canvas, gap, alpha) {
         const ctx = canvas.getContext("2d")
         ctx.reset()
-        ctx.fillStyle = "rgba(255,255,255," + alpha + ")"
+        ctx.fillStyle = Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, alpha)
         for (let y = gap / 2; y < canvas.height; y += gap)
             for (let x = gap / 2; x < canvas.width; x += gap) {
                 ctx.beginPath()
@@ -255,14 +239,13 @@ Scope {
         function close(): void { root.shown = false }
     }
 
-    // ───────────────────────── Window ─────────────────────────
     PanelWindow {
         id: win
         visible: root.shown
         implicitWidth: root.winW
         implicitHeight: col.implicitHeight + root.pad * 2
         color: "transparent"
-        exclusionMode: ExclusionMode.Ignore            // no anchors => centered
+        exclusionMode: ExclusionMode.Ignore
 
         WlrLayershell.namespace: "tzeuk-launcher"
         WlrLayershell.layer: WlrLayer.Overlay
@@ -285,7 +268,6 @@ Scope {
                 width: card.width - root.pad * 2
                 spacing: 12
 
-                // ── Header: dot-matrix clock + LED ──
                 Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 52
@@ -336,7 +318,6 @@ Scope {
                     onHeightChanged: requestPaint()
                 }
 
-                // ── Search pill ──
                 Rectangle {
                     id: bar
                     Layout.fillWidth: true
@@ -358,7 +339,6 @@ Scope {
                         font.pixelSize: 22
                     }
 
-                    // Mode tag
                     Rectangle {
                         id: tag
                         anchors.right: parent.right
@@ -411,7 +391,6 @@ Scope {
                             font.pixelSize: 19
                             inputMethodHints: Qt.ImhNoPredictiveText
 
-                            // Solid red block in INSERT, hollow block in NORMAL.
                             cursorDelegate: Rectangle {
                                 width: 9
                                 color: root.mode === "insert" ? root.cRed : "transparent"
@@ -426,7 +405,6 @@ Scope {
                     }
                 }
 
-                // ── Results ──
                 ListView {
                     id: list
                     Layout.fillWidth: true
@@ -448,7 +426,6 @@ Scope {
                         width: list.width
                         height: root.rowH
 
-                        // Selected row = inverted white pill
                         Rectangle {
                             anchors.fill: parent
                             radius: height / 2
@@ -461,7 +438,6 @@ Scope {
                             anchors.rightMargin: 18
                             spacing: 12
 
-                            // LED marker
                             Rectangle {
                                 Layout.preferredWidth: 6
                                 Layout.preferredHeight: 6
@@ -470,7 +446,6 @@ Scope {
                                 opacity: row.current ? 1 : 0
                             }
 
-                            // Monochrome icon (letter tile fallback)
                             Item {
                                 Layout.preferredWidth: 24
                                 Layout.preferredHeight: 24
@@ -515,12 +490,10 @@ Scope {
                                 font.pixelSize: 16
                             }
 
-                            // Kind tag (apps stay clean)
                             Text {
                                 visible: row.modelData.kind !== "app"
                                 text: row.modelData.kind === "cmd" ? "RUN" : "BIN"
-                                color: row.current ? root.dim(0) : root.dim(0.4)
-                                Component.onCompleted: color = Qt.binding(() => row.current ? Qt.rgba(0, 0, 0, 0.55) : root.dim(0.4))
+                                color: row.current ? Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.55) : root.dim(0.4)
                                 font.family: root.fMono
                                 font.pixelSize: 10
                                 font.letterSpacing: 1
@@ -535,7 +508,6 @@ Scope {
                         }
                     }
 
-                    // Minimal scroll indicator
                     Rectangle {
                         visible: list.visibleArea.heightRatio < 1
                         x: list.width - 2
@@ -555,7 +527,6 @@ Scope {
                     onHeightChanged: requestPaint()
                 }
 
-                // ── Footer ──
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 18
