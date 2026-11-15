@@ -10,28 +10,26 @@ PanelWindow {
     property bool opened: false
     signal closeRequested()
 
-    // ═══════════════ Palette ═══════════════
-    readonly property color cBlack: "#000000"
-    readonly property color cWhite: "#FFFFFF"
-    readonly property color cRed:   "#D71921"
-    readonly property color cS1:    "#0a0a0a"
-    readonly property color cS2:    "#171717"
-    readonly property color cS3:    "#252525"
-    function dim(a) { return Qt.rgba(1, 1, 1, a) }
+    // ═══ pywal-driven palette ═══
+    readonly property color cBlack: Theme.bg
+    readonly property color cWhite: Theme.fg
+    readonly property color cRed:   Theme.accent
+    readonly property color cS1:    Theme.s1
+    readonly property color cS2:    Theme.s2
+    readonly property color cS3:    Theme.s3
+    function dim(a) { return Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, a) }
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
     function pad2(n) { return String(n).padStart(2, "0") }
 
     readonly property string iClose:  cp(0xF0156)
     readonly property string iBuffer: cp(0xF018F)
 
-    // ═══════════════ Fonts ═══════════════
     readonly property string fDot:  Theme.fontDoto  !== "" ? Theme.fontDoto  : "monospace"
     readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
     readonly property string fMono: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
     readonly property string fNf:   "JetBrainsMono Nerd Font"
     readonly property string fEmoji:"Noto Color Emoji"
 
-    // ═══════════════ Data ═══════════════
     property var sets: []
     property var items: []
     property var byChar: ({})
@@ -41,7 +39,6 @@ PanelWindow {
     property bool hasWtype: false
     property int tone: 0
 
-    // ═══════════════ UI state ═══════════════
     property int sec: 0
     property int grp: -1
     property string buffer: ""
@@ -109,7 +106,6 @@ PanelWindow {
         onExited: code => win.hasWtype = code === 0
     }
 
-    // ═══════════════ Sections ═══════════════
     readonly property var sections: [
         { id: "all",    label: "all",     sets: ["emoji", "nerd", "sym", "kao"] },
         { id: "recent", label: "recent",  sets: ["emoji", "nerd", "sym", "kao"] },
@@ -131,7 +127,6 @@ PanelWindow {
            ? results[listMode ? list.currentIndex : grid.currentIndex]
            : null)
 
-    // ═══════════════ Helpers ═══════════════
     function setIndex(id) {
         for (var i = 0; i < sets.length; i++) if (sets[i].id === id) return i
         return -1
@@ -245,7 +240,6 @@ PanelWindow {
         saveState()
     }
 
-    // ═══════════════ Fancy text ═══════════════
     readonly property var mathStyles: [
         ["bold", 0x1D400, 0x1D41A, 0x1D7CE], ["italic", 0x1D434, 0x1D44E, 0],
         ["bold italic", 0x1D468, 0x1D482, 0], ["script", 0x1D49C, 0x1D4B6, 0],
@@ -326,7 +320,6 @@ PanelWindow {
         return out
     }
 
-    // ═══════════════ Actions ═══════════════
     function copy(s) {
         Quickshell.execDetached(["sh", "-c",
             'wl-copy -- "$1" && notify-send -a tzeuk -t 1500 "copied" "$1"', "sh", s])
@@ -473,7 +466,7 @@ PanelWindow {
     function paintDots(canvas, gap, alpha) {
         var ctx = canvas.getContext("2d")
         ctx.reset()
-        ctx.fillStyle = "rgba(255,255,255," + alpha + ")"
+        ctx.fillStyle = Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, alpha)
         for (var y = gap / 2; y < canvas.height; y += gap)
             for (var x = gap / 2; x < canvas.width; x += gap) {
                 ctx.beginPath()
@@ -482,7 +475,6 @@ PanelWindow {
             }
     }
 
-    // ═══════════════ Lifecycle ═══════════════
     onOpenedChanged: {
         if (!opened) return
         hovered = null
@@ -502,7 +494,6 @@ PanelWindow {
     Timer { id: debounce;    interval: 40; onTriggered: win.recompute() }
     Timer { id: focusTimer;  interval: 80; onTriggered: if (input) input.forceActiveFocus() }
 
-    // ═══════════════ Window ═══════════════
     visible: opened
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
@@ -513,7 +504,7 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: "#000000b3"
+        color: Qt.rgba(Theme.bg.r, Theme.bg.g, Theme.bg.b, 0.70)
         MouseArea { anchors.fill: parent; onClicked: win.closeRequested() }
     }
 
@@ -534,7 +525,6 @@ PanelWindow {
             anchors.margins: 20
             spacing: 10
 
-            // ═══ Header: section label + count + LED ═══
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 46
@@ -592,7 +582,6 @@ PanelWindow {
                 onWidthChanged: requestPaint()
             }
 
-            // ═══ Search row ═══
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 44
@@ -739,7 +728,6 @@ PanelWindow {
                 }
             }
 
-            // ═══ Section chips ═══
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 28
@@ -779,7 +767,6 @@ PanelWindow {
                 }
             }
 
-            // ═══ Group chips ═══
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: win.groups.length > 0 ? 24 : 0
@@ -824,7 +811,6 @@ PanelWindow {
                 }
             }
 
-            // ═══ Results ═══
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -993,7 +979,6 @@ PanelWindow {
                 onWidthChanged: requestPaint()
             }
 
-            // ═══ Preview ═══
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
@@ -1088,7 +1073,6 @@ PanelWindow {
                 }
             }
 
-            // ═══ Footer ═══
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 14
