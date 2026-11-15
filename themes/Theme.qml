@@ -16,51 +16,50 @@ Singleton {
     readonly property string ui: sans
     readonly property string nf: "JetBrainsMono Nerd Font"
 
-    // ═══ IRIS SOURCE ═══
+    // ═══ PYWAL SOURCE ═══
     FileView {
-        id: irisView
-        path: Quickshell.env("HOME") + "/.cache/iris/colors.json"
+        id: walView
+        path: Quickshell.env("HOME") + "/.cache/wal/colors.json"
         watchChanges: true
         onFileChanged: reload()
         adapter: JsonAdapter {
-            id: iris
-            property string image: ""
-            property color bg: "#000000"
-            property color fg: "#ffffff"
-            property color accent: "#d71921"
-            property color surface: "#0a0a0a"
-            property color dim: "#666666"
-            property color red: "#d71921"
-            property color green: "#00ff88"
-            property color yellow: "#ffcc00"
-            property color syntax_keyword: "#d71921"
-            property color syntax_string: "#ffffff"
-            property color syntax_func: "#d71921"
-            property color syntax_type: "#d71921"
-            property color syntax_const: "#d71921"
-            property color syntax_comment: "#666666"
-            property color syntax_param: "#d71921"
-            property color syntax_operator: "#d71921"
+            id: wal
+            property JsonObject special: JsonObject {
+                property color background: "#000000"
+                property color foreground: "#ffffff"
+                property color cursor: "#d71921"
+            }
+            property JsonObject colors: JsonObject {
+                property color color0: "#000000"
+                property color color1: "#d71921"
+                property color color2: "#00ff88"
+                property color color3: "#ffcc00"
+                property color color4: "#89b4fa"
+                property color color5: "#cba6f7"
+                property color color6: "#74c7ec"
+                property color color7: "#ffffff"
+                property color color8: "#333333"
+                property color color9: "#d71921"
+                property color color10: "#00ff88"
+                property color color11: "#ffcc00"
+                property color color12: "#89b4fa"
+                property color color13: "#cba6f7"
+                property color color14: "#74c7ec"
+                property color color15: "#ffffff"
+            }
         }
     }
 
-    function shiftL(color, delta) {
-        var h = color.hslHue
-        var s = color.hslSaturation
-        var l = Math.max(0, Math.min(1, color.hslLightness + delta))
-        return Qt.hsla(h, s, l, 1.0)
-    }
-
     // ═══ CORE PALETTE ═══
-    readonly property color bg: iris.bg
-    readonly property color fg: iris.fg
-    readonly property color accent: iris.accent
-    readonly property color err: iris.red
-    readonly property color surfaceHi: iris.surface
-    readonly property color line: shiftL(iris.surface, 0.06)
-    readonly property color dim: iris.dim
-    readonly property color barBg: Qt.rgba(iris.bg.r, iris.bg.g, iris.bg.b, 0.85)
-    readonly property color nText: iris.dim
+    readonly property color bg: wal.special.background
+    readonly property color fg: wal.special.foreground
+    readonly property color accent: wal.colors.color1
+    readonly property color err: wal.colors.color1
+    readonly property color surfaceHi: Qt.rgba(fg.r, fg.g, fg.b, 0.10)
+    readonly property color line: Qt.rgba(fg.r, fg.g, fg.b, 0.20)
+    readonly property color dim: Qt.rgba(fg.r, fg.g, fg.b, 0.50)
+    readonly property color barBg: Qt.rgba(bg.r, bg.g, bg.b, 0.85)
+    readonly property color nText: Qt.rgba(fg.r, fg.g, fg.b, 0.40)
 
     readonly property color nBlack: bg
     readonly property color nWhite: fg
@@ -68,31 +67,49 @@ Singleton {
     readonly property color nDim: line
     readonly property color nSurface: surfaceHi
 
-    // ═══ M3 (derived from iris for backwards compat) ═══
-    readonly property color m3Primary: iris.accent
-    readonly property color m3OnPrimary: iris.bg
-    readonly property color m3PrimaryContainer: shiftL(iris.surface, 0.02)
-    readonly property color m3OnPrimaryContainer: iris.fg
-    readonly property color m3Secondary: iris.dim
-    readonly property color m3OnSecondary: iris.bg
-    readonly property color m3SecondaryContainer: shiftL(iris.surface, 0.04)
-    readonly property color m3OnSecondaryContainer: iris.fg
-    readonly property color m3Tertiary: iris.syntax_keyword
-    readonly property color m3OnTertiary: iris.bg
-    readonly property color m3TertiaryContainer: shiftL(iris.surface, 0.04)
-    readonly property color m3OnTertiaryContainer: iris.fg
-    readonly property color m3Surface: iris.surface
-    readonly property color m3SurfaceLowest: iris.bg
-    readonly property color m3SurfaceLow: shiftL(iris.surface, -0.02)
-    readonly property color m3SurfaceContainer: iris.surface
-    readonly property color m3SurfaceHigh: shiftL(iris.surface, 0.04)
-    readonly property color m3SurfaceHighest: shiftL(iris.surface, 0.08)
-    readonly property color m3OnSurface: iris.fg
-    readonly property color m3OnSurfaceVariant: iris.dim
-    readonly property color m3Outline: iris.dim
-    readonly property color m3OutlineVariant: shiftL(iris.dim, -0.10)
-    readonly property color m3Err: iris.red
-    readonly property color m3OnErr: iris.bg
+    // ═══ M3 aliases ═══
+    readonly property color m3Primary: wal.colors.color1
+    readonly property color m3OnPrimary: wal.special.background
+    readonly property color m3PrimaryContainer: wal.colors.color8
+    readonly property color m3OnPrimaryContainer: wal.special.foreground
+    readonly property color m3Secondary: wal.colors.color4
+    readonly property color m3OnSecondary: wal.special.background
+    readonly property color m3SecondaryContainer: wal.colors.color8
+    readonly property color m3OnSecondaryContainer: wal.special.foreground
+    readonly property color m3Tertiary: wal.colors.color5
+    readonly property color m3OnTertiary: wal.special.background
+    readonly property color m3TertiaryContainer: wal.colors.color8
+    readonly property color m3OnTertiaryContainer: wal.special.foreground
+    readonly property color m3Surface: wal.special.background
+    readonly property color m3SurfaceLowest: wal.special.background
+    readonly property color m3SurfaceLow: wal.colors.color8
+    readonly property color m3SurfaceContainer: wal.colors.color8
+    readonly property color m3SurfaceHigh: wal.colors.color8
+    readonly property color m3SurfaceHighest: wal.colors.color8
+    readonly property color m3OnSurface: wal.special.foreground
+    readonly property color m3OnSurfaceVariant: wal.colors.color7
+    readonly property color m3Outline: wal.colors.color8
+    readonly property color m3OutlineVariant: wal.colors.color8
+    readonly property color m3Err: wal.colors.color1
+    readonly property color m3OnErr: wal.special.background
+
+    // ═══ ANSI palette direct access ═══
+    readonly property color ansi0: wal.colors.color0
+    readonly property color ansi1: wal.colors.color1
+    readonly property color ansi2: wal.colors.color2
+    readonly property color ansi3: wal.colors.color3
+    readonly property color ansi4: wal.colors.color4
+    readonly property color ansi5: wal.colors.color5
+    readonly property color ansi6: wal.colors.color6
+    readonly property color ansi7: wal.colors.color7
+    readonly property color ansi8: wal.colors.color8
+    readonly property color ansi9: wal.colors.color9
+    readonly property color ansi10: wal.colors.color10
+    readonly property color ansi11: wal.colors.color11
+    readonly property color ansi12: wal.colors.color12
+    readonly property color ansi13: wal.colors.color13
+    readonly property color ansi14: wal.colors.color14
+    readonly property color ansi15: wal.colors.color15
 
     // ═══ ICONS ═══
     function cp(c) { c -= 0x10000; return String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)) }
@@ -116,10 +133,9 @@ Singleton {
         return sig >= 75 ? iWifiHigh : sig >= 50 ? iWifiMed : sig >= 25 ? iWifiLow : iWifiOff
     }
 
-    // ═══ LAUNCHER COMPAT ═══
     readonly property color bright: fg
     readonly property color ink: bg
-    readonly property color warn: iris.yellow
+    readonly property color warn: wal.colors.color3
     readonly property color live: accent
     readonly property color mute: dim
     readonly property color fill: surfaceHi
@@ -146,7 +162,6 @@ Singleton {
     }
 
     function scaleFor(screen) { return screen ? Math.max(1, screen.devicePixelRatio) : 1 }
-
     function focusedScreen() {
         var m = Hyprland.focusedMonitor
         var l = Quickshell.screens
@@ -154,13 +169,12 @@ Singleton {
         return l.length ? l[0] : null
     }
 
-    // ═══ PANEL / GLYPH PICKER ═══
-    readonly property color s1: shiftL(iris.surface, -0.02)
-    readonly property color s2: iris.surface
-    readonly property color s3: shiftL(iris.surface, 0.06)
+    readonly property color s1: Qt.rgba(wal.colors.color8.r, wal.colors.color8.g, wal.colors.color8.b, 0.40)
+    readonly property color s2: Qt.rgba(wal.colors.color8.r, wal.colors.color8.g, wal.colors.color8.b, 0.65)
+    readonly property color s3: wal.colors.color8
     readonly property real panelAlpha: 1.0
-    readonly property color scrim: Qt.rgba(iris.bg.r, iris.bg.g, iris.bg.b, 0.7)
-    readonly property color grey: iris.dim
+    readonly property color scrim: Qt.rgba(bg.r, bg.g, bg.b, 0.7)
+    readonly property color grey: Qt.rgba(fg.r, fg.g, fg.b, 0.60)
     readonly property int t: move
     readonly property var glide: settle
     function fade(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
