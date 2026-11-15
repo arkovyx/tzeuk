@@ -332,7 +332,7 @@ case "$BACKEND" in
         ;;
 esac
 
-iris-tzeuk "$WALL" 2>/dev/null || echo "iris-tzeuk FAILED"
+tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
 `
         Quickshell.execDetached([
             "bash", "-c", script, "apply",
