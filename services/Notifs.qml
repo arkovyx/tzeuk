@@ -5,8 +5,9 @@ import Quickshell.Services.Notifications
 
 Singleton {
     id: root
+
     property bool dnd: false
-    property var popups: []       // [{n, until}]
+    property var popups: []
     readonly property int count: server.trackedNotifications.values.length
 
     function history() {
@@ -30,7 +31,7 @@ Singleton {
         var isCritical = (n.urgency === 2)
         var ms = (isCritical || n.expireTimeout <= 0) ? 8000 : Math.min(n.expireTimeout, 8000)
         var next = popups.concat([{ n: n, until: Date.now() + ms }])
-        popups = next.slice(-4)   // max 4 stacked
+        popups = next.slice(-4)
         n.closed.connect(function() { root.dropPopup(n) })
     }
 
@@ -40,7 +41,12 @@ Singleton {
         actionsSupported: true
         bodyMarkupSupported: true
         imageSupported: true
+
         onNotification: function(n) {
+            Quickshell.execDetached([
+                "paplay",
+                Quickshell.env("HOME") + "/.config/quickshell/tzeuk/sounds/notification.wav"
+            ])
             n.tracked = true
             if (!root.dnd || n.urgency === 2) root.push(n)
         }
