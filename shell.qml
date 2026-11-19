@@ -11,6 +11,7 @@ import "glyphs"
 import "wallpicker"
 import "powermenu"
 import "themes"
+import "desktop"
 
 ShellRoot {
     id: root
@@ -97,6 +98,11 @@ ShellRoot {
     MediaPopup {
         opened: root.mediaOpen
         onCloseRequested: root.mediaOpen = false
+    }
+
+    Variants {
+        model: Quickshell.screens
+        DesktopWidget { }
     }
 
     IpcHandler {
