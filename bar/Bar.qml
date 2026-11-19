@@ -15,10 +15,10 @@ PanelWindow {
     signal togglePanel(string name, var scr)
 
     anchors { top: true; left: true; right: true }
-    margins { top: 8; left: 20; right: 20 }
-    implicitHeight: 44
+    margins { top: 5; left: 4; right: 4 }
+    implicitHeight: 34
     color: "transparent"
-    WlrLayershell.namespace: "tzeuk-bar-nothing"
+    WlrLayershell.namespace: "tzeuk-bar"
 
 
     readonly property string fDotStr: Theme.fontDoto !== "" ? Theme.fontDoto : "monospace"
