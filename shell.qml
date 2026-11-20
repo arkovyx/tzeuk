@@ -12,6 +12,7 @@ import "wallpicker"
 import "powermenu"
 import "themes"
 import "desktop"
+import "timerandalarms"
 
 ShellRoot {
     id: root
@@ -24,6 +25,7 @@ ShellRoot {
     property bool glyphsOpen: false
     property bool powerOpen: false
     property bool mediaOpen: false
+    property bool clockOpen: false
 
     PwObjectTracker { objects: Pipewire.nodes.values }
 
@@ -105,6 +107,11 @@ ShellRoot {
         DesktopWidget { }
     }
 
+    ClockPopup {
+        opened: root.clockOpen
+        onCloseRequested: root.clockOpen = false
+    }
+
     IpcHandler {
         target: "panel"
         function toggle(): void {
@@ -141,5 +148,12 @@ ShellRoot {
         function toggle(): void { root.mediaOpen = !root.mediaOpen }
         function open(): void   { root.mediaOpen = true }
         function close(): void  { root.mediaOpen = false }
+    }
+
+    IpcHandler {
+        target: "clock"
+        function toggle(): void { root.clockOpen = !root.clockOpen }
+        function open(): void   { root.clockOpen = true }
+        function close(): void  { root.clockOpen = false }
     }
 }
