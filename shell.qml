@@ -13,6 +13,7 @@ import "powermenu"
 import "themes"
 import "desktop"
 import "timerandalarms"
+import "shaderpicker"
 
 ShellRoot {
     id: root
@@ -26,6 +27,7 @@ ShellRoot {
     property bool powerOpen: false
     property bool mediaOpen: false
     property bool clockOpen: false
+    property bool shaderOpen: false
 
     PwObjectTracker { objects: Pipewire.nodes.values }
 
@@ -90,6 +92,11 @@ ShellRoot {
         onCloseRequested: root.glyphsOpen = false
     }
 
+    ShaderPicker {
+        opened: root.shaderOpen
+        onCloseRequested: root.shaderOpen = false
+    }
+
     WallPicker { id: wallPicker }
 
     PowerMenu {
@@ -105,6 +112,11 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         DesktopWidget { }
+    }
+
+    Variants {
+        model: Quickshell.screens
+        WallpaperDots { }
     }
 
     ClockPopup {
@@ -155,5 +167,12 @@ ShellRoot {
         function toggle(): void { root.clockOpen = !root.clockOpen }
         function open(): void   { root.clockOpen = true }
         function close(): void  { root.clockOpen = false }
+    }
+
+    IpcHandler {
+        target: "shader"
+        function toggle(): void { root.shaderOpen = !root.shaderOpen }
+        function open(): void   { root.shaderOpen = true }
+        function close(): void  { root.shaderOpen = false }
     }
 }
