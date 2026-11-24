@@ -30,8 +30,13 @@ PanelWindow {
         path: win.stateFile
         watchChanges: true
         blockLoading: true
-        onLoaded: win.enabled = (text().trim() === "wall")
-        onFileChanged: win.enabled = (text().trim() === "wall")
+        onLoaded: {
+            win.enabled = (text().trim() === "wall")
+        }
+        onFileChanged: {
+            reload()
+            win.enabled = (text().trim() === "wall")
+        }
         onLoadFailed: win.enabled = false
     }
 
@@ -40,8 +45,13 @@ PanelWindow {
         path: win.wallpaperFile
         watchChanges: true
         blockLoading: true
-        onLoaded: win.wallPath = text().trim()
-        onFileChanged: win.wallPath = text().trim()
+        onLoaded: {
+            win.wallPath = text().trim()
+        }
+        onFileChanged: {
+            reload()
+            win.wallPath = text().trim()
+        }
         onLoadFailed: win.wallPath = ""
     }
 
