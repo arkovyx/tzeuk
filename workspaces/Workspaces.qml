@@ -13,7 +13,7 @@ Row {
     property string fontDot: "monospace"
     property int rowHeight: 28
 
-    spacing: 8
+    spacing: 6
 
     readonly property var activeWs: hmon ? hmon.activeWorkspace : null
     readonly property int offset: (activeWs && activeWs.id > 0) ? Math.floor((activeWs.id - 1) / 10) * 10 : 0
