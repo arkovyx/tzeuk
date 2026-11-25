@@ -15,6 +15,7 @@ import "desktop"
 import "timerandalarms"
 import "shaderpicker"
 import "cal"
+import "shot"
 
 ShellRoot {
     id: root
@@ -99,6 +100,8 @@ ShellRoot {
     }
 
     WallPicker { id: wallPicker }
+
+    Shot { id: shotTool }
 
     PowerMenu {
         opened: root.powerOpen
@@ -190,5 +193,11 @@ ShellRoot {
             root.panelOpen = false
         }
         function close(): void { root.calOpen = false }
+    }
+
+    IpcHandler {
+        target: "shot"
+        function open(): void  { shotTool.open() }
+        function close(): void { shotTool.close() }
     }
 }
