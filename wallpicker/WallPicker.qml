@@ -1,11 +1,21 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
 import "../themes"
+import "../glyphs"
 
+// Wallpaper picker: tzeuk functionality (ALL / FOLDERS views, breadcrumb, filter with normal/insert modes,
+// thumb cache, awww/swww/hyprpaper apply + tzk-theme, IPC "wallpaper") with the Glyph look: the whole screen is
+// the preview (the selected picture assembles as dots in a wave), a strip of dot-circle thumbs at the bottom with a
+// progress ring, big Doto counter, look / dot size / light controls.
+//
+// Keys (normal): ←→ / h l browse · ↵ / space set (enter folder) · i or / filter · tab all/folders · c look (shift+c back)
+//                ↑↓ dot size · shift ↑↓ light · g / G first / last · backspace up · esc back
+// Keys (insert): type to filter · ←→ browse · ↵ set · esc normal
+// Mouse: wheel browses, click a circle selects it, click the selected one sets it.
+// Look / dot size / light are saved on apply (cacheDir/glyph-look) and affect the preview.
 Scope {
     id: picker
     property bool shown: false
@@ -14,15 +24,13 @@ Scope {
     WallSettings { id: settings }
 
     readonly property string fDot:  Theme.fontDoto !== "" ? Theme.fontDoto : "monospace"
-    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
-    readonly property string fBold: Theme.fontBold !== "" ? Theme.fontBold : "sans-serif"
     readonly property string fMono: Theme.fontMono !== "" ? Theme.fontMono : "monospace"
+    readonly property string fSans: Theme.fontSans !== "" ? Theme.fontSans : "sans-serif"
 
-    readonly property color cBlack: Theme.bg
-    readonly property color cWhite: Theme.fg
-    readonly property color cRed: Theme.accent
     function dim(a) { return Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, a) }
+    function fade(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
     function pad2(n) { return String(n).padStart(2, "0") }
+    function fileUrl(p) { return p ? "file://" + String(p).split("/").map(encodeURIComponent).join("/") : "" }
 
     // ── State ──
     property string viewMode: "all"
@@ -34,6 +42,14 @@ Scope {
     property var folderPreview: ({})
     property bool scanning: false
 
+    property int sel: 0                 // selected index in displayedItems
+    property string currentWall: ""     // wallpaper that is live now (last applied)
+    property int look: 0
+    property int pitch: 10
+    property int bright: 85
+    readonly property var looks: ["dots", "vivid", "mono", "color"]
+    readonly property var order: [0, 3, 1, 2]   // look number per pill position
+
     // ── Derived ──
     readonly property var displayedItems: {
         let items = rebuildItems()
@@ -44,6 +60,7 @@ Scope {
             return it.file.toLowerCase().indexOf(q) >= 0
         })
     }
+    onDisplayedItemsChanged: clampSel()
 
     readonly property var breadcrumb: {
         const parts = currentPath === "" ? [] : currentPath.split("/")
@@ -54,6 +71,38 @@ Scope {
             out.push({ label: parts[i], path: acc })
         }
         return out
+    }
+
+    // picture shown in the big preview: the selected wallpaper (or a folder's preview), debounced while browsing
+    readonly property string wantPath: {
+        const it = displayedItems[sel]
+        if (!it) return ""
+        if (it.type === "folder") return it.preview ? it.preview.path : ""
+        return it.path
+    }
+    property string viewPath: ""
+    onWantPathChanged: settle.restart()
+    Timer { id: settle; interval: 160; onTriggered: picker.viewPath = picker.wantPath }
+
+    readonly property string selName: {
+        const it = displayedItems[sel]
+        if (!it) return "nothing"
+        if (it.type === "folder") return it.name
+        return it.file.replace(/\.[^.]+$/, "")
+    }
+
+    function clampSel() {
+        const n = displayedItems.length
+        sel = n === 0 ? 0 : Math.max(0, Math.min(n - 1, sel))
+    }
+    function go(d) {
+        const n = displayedItems.length
+        if (n === 0) return
+        sel = Math.max(0, Math.min(n - 1, sel + d))
+    }
+    function cycleLook(dir) {
+        const i = order.indexOf(look)
+        look = order[(i + dir + order.length) % order.length]
     }
 
     function rebuildItems() {
@@ -99,6 +148,9 @@ Scope {
         const extExpr = settings.imageExtensions.map(e => "-iname '*." + e + "'").join(" -o ")
         const script = `
 ROOT='${settings.wallpapersRoot}'
+CACHE='${settings.cacheDir}'
+[ -f "$CACHE/last_wallpaper" ] && printf 'C|%s\\n' "$(cat "$CACHE/last_wallpaper")"
+[ -f "$CACHE/glyph-look" ] && printf 'P|%s\\n' "$(cat "$CACHE/glyph-look")"
 [ -d "$ROOT" ] || exit 0
 find "$ROOT" -type d -printf 'D|%P\\n' 2>/dev/null
 find "$ROOT" -type f \\( ${extExpr} \\) -printf 'F|%P\\n' 2>/dev/null
@@ -124,7 +176,16 @@ find "$ROOT" -type f \\( ${extExpr} \\) -printf 'F|%P\\n' 2>/dev/null
             const kind = line.substring(0, sep)
             const rel = line.substring(sep + 1)
             if (!rel) continue
-            if (kind === "D") {
+            if (kind === "C") {
+                currentWall = rel.trim()
+            } else if (kind === "P") {
+                const p = rel.trim().split(/\s+/).map(Number)
+                if (p.length === 3 && p.every(x => !isNaN(x))) {
+                    if (order.indexOf(p[0]) >= 0) look = p[0]
+                    pitch = Math.max(4, Math.min(32, p[1]))
+                    bright = Math.max(10, Math.min(100, p[2]))
+                }
+            } else if (kind === "D") {
                 dirSet[rel] = true
             } else if (kind === "F") {
                 const slash = rel.lastIndexOf("/")
@@ -163,6 +224,12 @@ find "$ROOT" -type f \\( ${extExpr} \\) -printf 'F|%P\\n' 2>/dev/null
         folderCounts = counts
         folderPreview = preview
         scanning = false
+
+        // start on the wallpaper that is live now
+        if (viewMode === "all" && filterQuery === "") {
+            const idx = files.findIndex(f => f.path === currentWall)
+            sel = idx >= 0 ? idx : 0
+        }
         syncThumbs()
     }
 
@@ -191,45 +258,43 @@ done
     }
 
     // ── Navigation ──
+    function resetNav() {
+        filterQuery = ""
+        searchInput.text = ""
+        sel = 0
+        Qt.callLater(() => searchInput.forceActiveFocus())
+    }
+
     function enterFolder(path) {
         currentPath = path
         viewMode = "folders"
-        filterQuery = ""
-        searchInput.text = ""
-        Qt.callLater(() => { carousel.currentIndex = 0; searchInput.forceActiveFocus() })
+        resetNav()
     }
 
     function goUp() {
-        if (currentPath === "") { viewMode = "all"; return }
+        if (currentPath === "") { viewMode = "all"; resetNav(); return }
         const parts = currentPath.split("/")
         parts.pop()
         currentPath = parts.join("/")
-        filterQuery = ""
-        searchInput.text = ""
-        Qt.callLater(() => { carousel.currentIndex = 0; searchInput.forceActiveFocus() })
+        resetNav()
     }
 
     function gotoPath(path) {
         currentPath = path
         viewMode = "folders"
-        filterQuery = ""
-        searchInput.text = ""
-        Qt.callLater(() => { carousel.currentIndex = 0; searchInput.forceActiveFocus() })
+        resetNav()
     }
 
     function toggleMode() {
         viewMode = viewMode === "all" ? "folders" : "all"
         currentPath = ""
-        filterQuery = ""
-        searchInput.text = ""
-        Qt.callLater(() => { carousel.currentIndex = 0; searchInput.forceActiveFocus() })
+        resetNav()
     }
 
     function activateCurrent() {
-        if (carousel.currentIndex < 0) return
         const items = displayedItems
-        if (carousel.currentIndex >= items.length) return
-        const item = items[carousel.currentIndex]
+        if (sel < 0 || sel >= items.length) return
+        const item = items[sel]
         if (item.type === "folder") enterFolder(item.path)
         else applyWallpaper(item)
     }
@@ -241,7 +306,7 @@ done
             return
         }
         if (viewMode === "folders" && currentPath !== "") { goUp(); return }
-        if (viewMode === "folders") { viewMode = "all"; return }
+        if (viewMode === "folders") { viewMode = "all"; resetNav(); return }
         shown = false
     }
 
@@ -343,6 +408,11 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
             settings.wallpaperBackend,
             settings.setAnimations.join(" ")
         ])
+        Quickshell.execDetached([
+            "bash", "-c", 'printf "%s %s %s" "$1" "$2" "$3" > "$4/glyph-look"', "save",
+            String(look), String(pitch), String(bright), settings.cacheDir
+        ])
+        currentWall = item.path
         shown = false
     }
 
@@ -353,8 +423,11 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
             viewMode = "all"
             currentPath = ""
             filterQuery = ""
+            searchInput.text = ""
+            sel = 0
+            viewPath = ""
             scan()
-            Qt.callLater(() => { carousel.currentIndex = 0; searchInput.forceActiveFocus() })
+            Qt.callLater(() => searchInput.forceActiveFocus())
         }
     }
 
@@ -370,114 +443,221 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
         function close()  { picker.shown = false }
     }
 
+    // ── Keyboard ──
+    function handleKey(event) {
+        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
+        const up = event.key === Qt.Key_Up, down = event.key === Qt.Key_Down
+        event.accepted = true
+
+        if (event.key === Qt.Key_Left) { go(-1); return }
+        if (event.key === Qt.Key_Right) { go(1); return }
+        if (event.key === Qt.Key_PageUp) { go(-5); return }
+        if (event.key === Qt.Key_PageDown) { go(5); return }
+        if (event.key === Qt.Key_Home) { sel = 0; return }
+        if (event.key === Qt.Key_End) { sel = Math.max(0, displayedItems.length - 1); return }
+        if (up || down) {
+            if (shift) bright = Math.max(10, Math.min(100, bright + (up ? 5 : -5)))
+            else pitch = Math.max(4, Math.min(32, pitch + (up ? 1 : -1)))
+            return
+        }
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) { activateCurrent(); return }
+        if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { toggleMode(); return }
+
+        if (mode === "insert") {
+            if (event.key === Qt.Key_Escape) { mode = "normal"; return }
+            event.accepted = false
+            return
+        }
+
+        switch (event.key) {
+        case Qt.Key_Escape:
+            handleEscape()
+            break
+        case Qt.Key_I:
+        case Qt.Key_Slash:
+            mode = "insert"
+            searchInput.forceActiveFocus()
+            break
+        case Qt.Key_H:
+            go(-1)
+            break
+        case Qt.Key_L:
+            go(1)
+            break
+        case Qt.Key_G:
+            sel = shift ? Math.max(0, displayedItems.length - 1) : 0
+            break
+        case Qt.Key_C:
+            cycleLook(shift ? -1 : 1)
+            break
+        case Qt.Key_Space:
+            activateCurrent()
+            break
+        case Qt.Key_Backspace:
+            if (viewMode === "folders") goUp()
+            break
+        }
+    }
+
     // ── UI ──
     PanelWindow {
         id: win
-        visible: picker.shown
-        color: "transparent"
+
+        property real t: picker.shown ? 1 : 0
+        Behavior on t { NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0, 1, 1, 1] } }
+
+        // the strip glides with one animation: pos follows sel
+        property real pos: picker.sel
+        Behavior on pos { NumberAnimation { duration: 320; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0, 1, 1, 1] } }
+
+        // circle at distance d: selected 190, neighbours 128, then 12 less each, min 64; linear in between
+        function size(d) { d = Math.abs(d); return d < 1 ? 190 - 62 * d : Math.max(64, 128 - (d - 1) * 12) }
+        readonly property var at: {
+            const a = [0]
+            for (let k = 1; k <= 10; k++) a.push(a[k - 1] + (size(k - 1) + size(k)) / 2 + (k === 1 ? 44 : 22))
+            return a
+        }
+        function off(d) {
+            const a = Math.min(Math.abs(d), 9), k = Math.floor(a), x = at[k] + (at[k + 1] - at[k]) * (a - k)
+            return d < 0 ? -x : x
+        }
+
+        visible: t > 0
+        anchors { left: true; right: true; top: true; bottom: true }
         exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
         WlrLayershell.namespace: "tzeuk-wallpicker"
         WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+        WlrLayershell.keyboardFocus: picker.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-        readonly property var scr: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
-        implicitWidth: scr ? Math.round(scr.width * 0.82) : 1400
-        implicitHeight: scr ? Math.round(scr.height * 0.68) : 800
+        // 1920x1080 design canvas scaled to the screen
+        Item {
+            id: stage
+            readonly property real u: win.height / 1080
+            width: win.width / u
+            height: win.height / u
+            scale: u
+            transformOrigin: Item.TopLeft
+            opacity: win.t
 
-        Rectangle {
-            anchors.fill: parent
-            radius: 28
-            color: picker.cBlack
-            border.color: picker.cWhite
-            border.width: 1
+            Rectangle { anchors.fill: parent; color: Theme.bg }
 
-            ColumnLayout {
+            Loader {
+                id: prev
                 anchors.fill: parent
-                anchors.margins: 26
-                spacing: 12
+                active: win.visible
+                sourceComponent: Wall {
+                    path: picker.viewPath
+                    look: picker.look
+                    pitch: picker.pitch
+                    bright: picker.bright / 100
+                    origin: Qt.point(width / 2, 850)
+                }
+            }
 
-                // ── HEADER ──
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 56
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.bottom: parent.bottom
-                        text: "WALLPAPER"
-                        color: picker.cWhite
-                        font.family: picker.fDot
-                        font.weight: Font.Black
-                        font.pixelSize: 46
-                        font.letterSpacing: 1
+            // wheel browses; click on empty space puts focus back on the filter input
+            MouseArea {
+                anchors.fill: parent
+                property real acc: 0
+                onClicked: searchInput.forceActiveFocus()
+                onWheel: w => {
+                    acc += w.angleDelta.y || w.angleDelta.x
+                    while (Math.abs(acc) >= 120) {
+                        picker.go(acc > 0 ? -1 : 1)
+                        acc -= Math.sign(acc) * 120
                     }
+                }
+            }
 
-                    Row {
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 10
-                        spacing: 12
+            // labels must stay readable on top of the picture
+            Rectangle {
+                width: parent.width
+                height: 380
+                gradient: Gradient {
+                    GradientStop { position: 0; color: picker.fade(Theme.bg, 0.85) }
+                    GradientStop { position: 1; color: picker.fade(Theme.bg, 0) }
+                }
+            }
+            Rectangle {
+                y: parent.height - height
+                width: parent.width
+                height: 460
+                gradient: Gradient {
+                    GradientStop { position: 0; color: picker.fade(Theme.bg, 0) }
+                    GradientStop { position: 1; color: picker.fade(Theme.bg, 0.9) }
+                }
+            }
 
-                        Rectangle {
-                            id: viewToggle
-                            width: 86; height: 26; radius: 13
-                            color: viewToggleHover.containsMouse
-                                ? Qt.rgba(0.84, 0.10, 0.13, 0.15) : "transparent"
-                            border.color: picker.cRed
-                            border.width: viewToggleHover.containsMouse ? 2 : 1
-                            Behavior on border.width { NumberAnimation { duration: 120 } }
-                            Behavior on color { ColorAnimation { duration: 120 } }
+            // counter + name + breadcrumb
+            Column {
+                x: 150 - 30 * (1 - win.t)
+                y: 110
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: picker.viewMode === "all" ? "ALL" : "FOLDERS"
-                                color: picker.cRed
-                                font.family: picker.fMono
-                                font.pixelSize: 10
-                                font.letterSpacing: 1.5
+                Cap { text: "wallpaper · " + picker.allWallpapers.length + " in " + settings.wallpapersRoot.replace(Quickshell.env("HOME"), "~") }
+                Row {
+                    topPadding: 18
+                    spacing: 10
+                    Dot {
+                        id: idx
+                        text: picker.pad2(picker.displayedItems.length === 0 ? 0 : picker.sel + 1)
+                        font.pixelSize: 150
+                    }
+                    Dot {
+                        anchors.baseline: idx.baseline
+                        text: "/" + picker.pad2(picker.displayedItems.length)
+                        font.pixelSize: 54
+                        color: picker.dim(0.35)
+                    }
+                }
+                Cap {
+                    topPadding: 22
+                    width: 700
+                    elide: Text.ElideRight
+                    text: picker.scanning && picker.displayedItems.length === 0 ? "scanning…"
+                        : picker.displayedItems.length === 0 ? (picker.filterQuery !== "" ? "no matches" : "empty")
+                        : picker.selName
+                    px: 14
+                    color: Theme.fg
+                }
+                Row {
+                    visible: picker.viewMode === "folders"
+                    topPadding: 14
+                    spacing: 8
+                    Repeater {
+                        model: picker.breadcrumb
+                        delegate: Row {
+                            id: crumb
+                            spacing: 8
+                            readonly property bool isLast: index === picker.breadcrumb.length - 1
+                            Cap {
+                                text: modelData.label
+                                px: 11
+                                color: crumb.isLast || crumbHover.hovered ? Theme.fg : picker.dim(0.5)
+                                HoverHandler { id: crumbHover; enabled: !crumb.isLast; cursorShape: Qt.PointingHandCursor }
+                                TapHandler { enabled: !crumb.isLast; onTapped: picker.gotoPath(modelData.path) }
                             }
-                            MouseArea {
-                                id: viewToggleHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: picker.toggleMode()
-                            }
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: picker.pad2(picker.displayedItems.length)
-                            color: picker.cWhite
-                            font.family: picker.fDot
-                            font.weight: Font.Black
-                            font.pixelSize: 24
-                        }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 8; height: 8; radius: 4
-                            color: picker.cRed
-                            SequentialAnimation on opacity {
-                                running: win.visible
-                                loops: Animation.Infinite
-                                NumberAnimation { to: 0.2; duration: 800 }
-                                NumberAnimation { to: 1.0; duration: 800 }
-                            }
+                            Cap { visible: !crumb.isLast; text: "/"; px: 11; color: picker.dim(0.3) }
                         }
                     }
                 }
+            }
 
-                // ── SEARCH ──
+            // filter, view, look, dials
+            Column {
+                anchors { right: parent.right; rightMargin: 150 - 30 * (1 - win.t) }
+                y: 110
+                spacing: 26
+
                 Rectangle {
                     id: searchBox
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 42
+                    anchors.right: parent.right
+                    width: 460
+                    height: 42
                     radius: 21
                     color: "transparent"
-                    border.color: picker.mode === "insert" ? picker.cWhite
-                        : (searchBoxHover.containsMouse ? picker.dim(0.55) : picker.dim(0.25))
                     border.width: 1
+                    border.color: picker.mode === "insert" ? Theme.fg
+                        : (searchBoxHover.containsMouse ? picker.dim(0.55) : picker.dim(0.25))
                     Behavior on border.color { ColorAnimation { duration: 120 } }
 
                     Text {
@@ -486,7 +666,7 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
                         anchors.leftMargin: 18
                         anchors.verticalCenter: parent.verticalCenter
                         text: "/"
-                        color: picker.cRed
+                        color: Theme.accent
                         font.family: picker.fDot
                         font.weight: Font.Black
                         font.pixelSize: 20
@@ -500,22 +680,20 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
                         anchors.verticalCenter: parent.verticalCenter
                         width: 76; height: 26; radius: 13
                         color: picker.mode === "insert"
-                            ? (modeBadgeHover.containsMouse
-                                ? Qt.rgba(0.84, 0.10, 0.13, 0.15) : "transparent")
-                            : picker.cWhite
+                            ? (modeBadgeHover.containsMouse ? picker.fade(Theme.accent, 0.15) : "transparent")
+                            : Theme.fg
                         border.width: picker.mode === "insert" ? 1 : 0
-                        border.color: picker.cRed
+                        border.color: Theme.accent
                         Behavior on color { ColorAnimation { duration: 120 } }
 
                         Text {
                             anchors.centerIn: parent
                             text: picker.mode === "insert" ? "INSERT" : "NORMAL"
-                            color: picker.mode === "insert" ? picker.cRed : picker.cBlack
+                            color: picker.mode === "insert" ? Theme.accent : Theme.bg
                             font.family: picker.fMono
                             font.pixelSize: 10
                             font.letterSpacing: 1
                         }
-
                         MouseArea {
                             id: modeBadgeHover
                             anchors.fill: parent
@@ -536,9 +714,9 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
                         anchors.right: modeBadge.left
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        color: picker.cWhite
-                        selectionColor: picker.cRed
-                        selectedTextColor: picker.cWhite
+                        color: Theme.fg
+                        selectionColor: Theme.accent
+                        selectedTextColor: Theme.fg
                         font.family: picker.fSans
                         font.pixelSize: 15
                         clip: true
@@ -547,7 +725,7 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
 
                         onTextChanged: {
                             picker.filterQuery = text.toLowerCase()
-                            carousel.currentIndex = 0
+                            picker.sel = 0
                         }
 
                         Text {
@@ -562,7 +740,7 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
 
                         cursorDelegate: Rectangle {
                             width: picker.mode === "insert" ? 2 : 0
-                            color: picker.cRed
+                            color: Theme.accent
                             visible: picker.mode === "insert"
                         }
 
@@ -583,370 +761,109 @@ tzk-theme "$WALL" 2>/dev/null || echo "tzk-theme FAILED"
                     }
                 }
 
-                // ── BREADCRUMB ──
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: (picker.viewMode === "folders") ? 18 : 0
-                    visible: picker.viewMode === "folders"
-
-                    Row {
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
-                        Repeater {
-                            model: picker.breadcrumb
-                            delegate: Row {
-                                id: crumb
-                                spacing: 6
-                                readonly property bool isLast: index === picker.breadcrumb.length - 1
-
-                                Text {
-                                    text: modelData.label
-                                    color: crumb.isLast
-                                        ? picker.cWhite
-                                        : (crumbHover.containsMouse ? picker.cWhite : picker.dim(0.5))
-                                    font.family: picker.fMono
-                                    font.pixelSize: 11
-                                    font.letterSpacing: 1
-                                    Behavior on color { ColorAnimation { duration: 120 } }
-                                }
-                                Text {
-                                    visible: !crumb.isLast
-                                    text: "/"
-                                    color: picker.dim(0.3)
-                                    font.family: picker.fMono
-                                    font.pixelSize: 11
-                                }
-                                MouseArea {
-                                    id: crumbHover
-                                    anchors.fill: parent
-                                    hoverEnabled: !crumb.isLast
-                                    enabled: !crumb.isLast
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: picker.gotoPath(modelData.path)
-                                }
-                            }
-                        }
-                    }
+                Pick {
+                    anchors.right: parent.right
+                    label: "view"
+                    opts: ["all", "folders"]
+                    cur: picker.viewMode === "all" ? 0 : 1
+                    onPicked: i => { if ((i === 1) !== (picker.viewMode === "folders")) picker.toggleMode() }
                 }
-
-                // ── DOT RULE TOP ──
-                Canvas {
-                    id: ruleTop
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 4
-                    onPaint: picker.paintDots(ruleTop, 5, 0.45)
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
+                Pick {
+                    anchors.right: parent.right
+                    label: "look"
+                    opts: picker.looks
+                    cur: picker.order.indexOf(picker.look)
+                    onPicked: i => picker.look = picker.order[i]
                 }
+                Row {
+                    anchors.right: parent.right
+                    spacing: 36
+                    Dial { size: 120; label: "dot · px"; from: 4; to: 32; value: picker.pitch; onMoved: v => picker.pitch = v }
+                    Dial { size: 120; label: "light · %"; from: 10; to: 100; step: 5; value: picker.bright; onMoved: v => picker.bright = v }
+                }
+            }
 
-                // ── CAROUSEL ──
-                ListView {
-                    id: carousel
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    orientation: ListView.Horizontal
-                    spacing: 0
-                    clip: false
-                    focus: false
+            // strip: the selected circle is always in the centre, the ring stays put, circles slide under it
+            DotRing {
+                x: stage.width / 2 - width / 2
+                y: 850 - height / 2
+                width: win.size(0) + 36
+                height: width
+                n: 60
+                dot: 4
+                f: picker.displayedItems.length > 1 ? picker.sel / (picker.displayedItems.length - 1) : 0
+            }
+            Repeater {
+                model: picker.displayedItems
+                delegate: Item {
+                    id: th
+                    required property var modelData
+                    required property int index
+                    readonly property bool isFolder: modelData.type === "folder"
+                    readonly property var shot: isFolder ? modelData.preview : modelData
+                    readonly property real d: index - win.pos
 
-                    highlightRangeMode: ListView.StrictlyEnforceRange
-                    preferredHighlightBegin: (width - (settings.cardWidth + settings.cardSpacing)) / 2
-                    preferredHighlightEnd: (width + (settings.cardWidth + settings.cardSpacing)) / 2
-                    highlightMoveDuration: 280
+                    visible: Math.abs(d) < 7.5
+                    x: stage.width / 2 + win.off(d) - 95
+                    y: 850 - 95
+                    width: 190
+                    height: 190
+                    scale: win.size(d) / 190
+                    opacity: 1 - Math.abs(d) * 0.12
 
-                    model: picker.displayedItems
-
-                    header: Item { width: Math.max(0, (carousel.width - settings.cardWidth - settings.cardSpacing) / 2) }
-                    footer: Item { width: Math.max(0, (carousel.width - settings.cardWidth - settings.cardSpacing) / 2) }
-
-                    delegate: Item {
-                        id: dRoot
-                        width: settings.cardWidth + settings.cardSpacing
-                        height: carousel.height
-
-                        readonly property bool isCurrent: ListView.isCurrentItem
-                        readonly property var item: modelData
-                        readonly property bool isFolder: item && item.type === "folder"
-
-                        readonly property real cardScale: isCurrent
-                            ? 1.0
-                            : (cardMouse.containsMouse ? 0.88 : 0.82)
-                        readonly property real borderAlpha: isCurrent
-                            ? 1.0
-                            : (cardMouse.containsMouse ? 0.60 : 0.25)
-
-                        readonly property string thumbSource: {
-                            if (!item) return ""
-                            if (isFolder) {
-                                const p = item.preview
-                                return p && p.thumb ? "file://" + p.thumb : ""
-                            }
-                            return item.thumb ? "file://" + item.thumb : ""
-                        }
-                        readonly property string fallbackSource: {
-                            if (!item) return ""
-                            if (isFolder) {
-                                const p = item.preview
-                                return p && p.path ? "file://" + p.path : ""
-                            }
-                            return item.path ? "file://" + item.path : ""
-                        }
-
-                        Item {
-                            anchors.centerIn: parent
-                            width: settings.cardWidth * dRoot.cardScale
-                            height: settings.cardHeight * dRoot.cardScale
-
-                            Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                            Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-
-                            Item {
-                                anchors.fill: parent
-                                transform: Matrix4x4 {
-                                    property real s: settings.cardSkew
-                                    matrix: Qt.matrix4x4(1, s, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
-                                }
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    color: "transparent"
-                                    border.color: picker.dim(dRoot.borderAlpha)
-                                    border.width: dRoot.isCurrent ? 2 : 1
-                                    Behavior on border.color { ColorAnimation { duration: 180 } }
-                                }
-
-                                Item {
-                                    anchors.fill: parent
-                                    anchors.margins: 2
-                                    clip: true
-
-                                    Rectangle { anchors.fill: parent; color: picker.cBlack }
-
-                                    Image {
-                                        anchors.centerIn: parent
-                                        width: parent.width + parent.height * Math.abs(settings.cardSkew) + 4
-                                        height: parent.height
-                                        source: dRoot.thumbSource !== "" ? dRoot.thumbSource : dRoot.fallbackSource
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
-                                        cache: true
-                                        opacity: dRoot.isCurrent ? 1.0
-                                            : (cardMouse.containsMouse ? 0.78 : 0.62)
-                                        Behavior on opacity { NumberAnimation { duration: 180 } }
-
-                                        transform: Matrix4x4 {
-                                            property real s: -settings.cardSkew
-                                            matrix: Qt.matrix4x4(1, s, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
-                                        }
-
-                                        onStatusChanged: {
-                                            if (status === Image.Error
-                                                && dRoot.fallbackSource !== ""
-                                                && source.toString() !== dRoot.fallbackSource)
-                                                source = dRoot.fallbackSource
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        visible: dRoot.isFolder
-                                        anchors.fill: parent
-                                        color: Qt.rgba(0, 0, 0,
-                                            dRoot.isCurrent ? 0.55
-                                            : (cardMouse.containsMouse ? 0.42 : 0.62))
-                                        Behavior on color { ColorAnimation { duration: 180 } }
-                                    }
-
-                                    Column {
-                                        visible: dRoot.isFolder
-                                        anchors.centerIn: parent
-                                        spacing: 6
-                                        width: parent.width - 40
-
-                                        Text {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            text: dRoot.item ? dRoot.item.name.toUpperCase() : ""
-                                            color: picker.cWhite
-                                            font.family: picker.fBold
-                                            font.pixelSize: 18
-                                            font.letterSpacing: 2
-                                            elide: Text.ElideRight
-                                            width: parent.width
-                                            horizontalAlignment: Text.AlignHCenter
-                                        }
-
-                                        Rectangle {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 24; height: 1
-                                            color: picker.cRed
-                                        }
-
-                                        Text {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            text: dRoot.item
-                                                ? picker.pad2(dRoot.item.count) + " ITEM" + (dRoot.item.count === 1 ? "" : "S")
-                                                : ""
-                                            color: picker.dim(0.7)
-                                            font.family: picker.fMono
-                                            font.pixelSize: 11
-                                            font.letterSpacing: 1
-                                        }
-                                    }
-                                }
-                            }
-
-                            MouseArea {
-                                id: cardMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    picker.mode = "normal"
-                                    carousel.currentIndex = index
-                                    if (dRoot.isFolder) picker.enterFolder(dRoot.item.path)
-                                    else picker.applyWallpaper(dRoot.item)
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        visible: carousel.count === 0
-                        text: picker.scanning ? "SCANNING..."
-                            : (picker.filterQuery !== "" ? "NO MATCHES" : "EMPTY")
-                        color: picker.dim(0.5)
-                        font.family: picker.fMono
-                        font.pixelSize: 12
-                        font.letterSpacing: 2
-                    }
-
-                    MouseArea {
+                    Loader {
                         anchors.fill: parent
-                        acceptedButtons: Qt.NoButton
-                        onWheel: (w) => {
-                            const d = w.angleDelta.y
-                            if (d > 0 && carousel.currentIndex > 0) carousel.currentIndex--
-                            else if (d < 0 && carousel.currentIndex < carousel.count - 1) carousel.currentIndex++
-                            w.accepted = true
+                        active: th.visible && !!th.shot
+                        sourceComponent: Art {
+                            url: picker.fileUrl(th.shot.thumb)
+                            fallback: picker.fileUrl(th.shot.path)
+                            step: 6
                         }
                     }
-                }
-
-                // ── DOT RULE BOTTOM ──
-                Canvas {
-                    id: ruleBottom
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 4
-                    onPaint: picker.paintDots(ruleBottom, 5, 0.45)
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-                }
-
-                // ── FOOTER ──
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 18
-
-                    Text {
-                        text: picker.mode === "insert"
-                            ? "◀▶ NAV   ⏎ APPLY   ESC NORMAL"
-                            : "◀▶ NAV   SPACE ⏎ SELECT   I INSERT   TAB VIEW   ESC BACK"
-                        color: picker.dim(0.45)
-                        font.family: picker.fMono
-                        font.pixelSize: 10
-                        font.letterSpacing: 1
+                    // folder: dimmed circle with the item count; also covers folders without any picture
+                    Rectangle {
+                        visible: th.isFolder
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: picker.fade(Theme.bg, th.shot ? 0.55 : 1)
+                        border.width: 1
+                        border.color: picker.dim(0.3)
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Dot { anchors.horizontalCenter: parent.horizontalCenter; text: picker.pad2(th.modelData.count || 0); font.pixelSize: 44 }
+                            Cap { anchors.horizontalCenter: parent.horizontalCenter; text: (th.modelData.count === 1 ? "item" : "items"); px: 11 }
+                        }
                     }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: carousel.count === 0
-                            ? "00/00"
-                            : picker.pad2(carousel.currentIndex + 1) + "/" + picker.pad2(carousel.count)
-                        color: picker.cRed
-                        font.family: picker.fDot
-                        font.weight: Font.Black
-                        font.pixelSize: 16
+                    // live now
+                    Rectangle {
+                        visible: !th.isFolder && th.modelData.path === picker.currentWall
+                        anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: th.index === picker.sel ? 36 : 22 }
+                        width: 10; height: 10; radius: 5
+                        color: Theme.accent
                     }
+                    TapHandler {
+                        onTapped: {
+                            picker.mode = "normal"
+                            if (th.index === picker.sel) picker.activateCurrent()
+                            else picker.sel = th.index
+                            searchInput.forceActiveFocus()
+                        }
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+            }
+
+            Row {
+                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 56 }
+                spacing: 34
+                Repeater {
+                    model: picker.mode === "insert"
+                        ? ["←→ browse", "↵ set", "esc normal"]
+                        : ["←→ browse", "↵ set", "i filter", "tab view", "c look", "↑↓ dot size", "shift ↑↓ light", "esc back"]
+                    Cap { required property string modelData; text: modelData }
                 }
             }
         }
-    }
-
-    // ── Keyboard ──
-    function handleKey(event) {
-        const shift = (event.modifiers & Qt.ShiftModifier) !== 0
-        event.accepted = true
-
-        if (event.key === Qt.Key_Left) {
-            if (carousel.currentIndex > 0) carousel.currentIndex--
-            return
-        }
-        if (event.key === Qt.Key_Right) {
-            if (carousel.currentIndex < carousel.count - 1) carousel.currentIndex++
-            return
-        }
-        if (event.key === Qt.Key_PageUp) {
-            carousel.currentIndex = Math.max(0, carousel.currentIndex - 5)
-            return
-        }
-        if (event.key === Qt.Key_PageDown) {
-            carousel.currentIndex = Math.min(carousel.count - 1, carousel.currentIndex + 5)
-            return
-        }
-        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            activateCurrent()
-            return
-        }
-        if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
-            toggleMode()
-            return
-        }
-
-        if (mode === "insert") {
-            if (event.key === Qt.Key_Escape) {
-                mode = "normal"
-                return
-            }
-            event.accepted = false
-            return
-        }
-
-        switch (event.key) {
-        case Qt.Key_Escape:
-            handleEscape()
-            break
-        case Qt.Key_I:
-        case Qt.Key_Slash:
-            mode = "insert"
-            searchInput.forceActiveFocus()
-            break
-        case Qt.Key_H:
-            if (carousel.currentIndex > 0) carousel.currentIndex--
-            break
-        case Qt.Key_L:
-            if (carousel.currentIndex < carousel.count - 1) carousel.currentIndex++
-            break
-        case Qt.Key_G:
-            carousel.currentIndex = shift ? carousel.count - 1 : 0
-            break
-        case Qt.Key_Space:
-            activateCurrent()
-            break
-        case Qt.Key_Backspace:
-            if (viewMode === "folders") goUp()
-            break
-        }
-    }
-
-    function paintDots(canvas, gap, alpha) {
-        const ctx = canvas.getContext("2d")
-        ctx.reset()
-        ctx.fillStyle = "rgba(255,255,255," + alpha + ")"
-        for (let y = gap / 2; y < canvas.height; y += gap)
-            for (let x = gap / 2; x < canvas.width; x += gap) {
-                ctx.beginPath()
-                ctx.arc(x, y, 1, 0, Math.PI * 2)
-                ctx.fill()
-            }
     }
 }
