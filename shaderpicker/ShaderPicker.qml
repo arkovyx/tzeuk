@@ -48,20 +48,20 @@ PanelWindow {
 
     function shaderDescription(name) {
         var desc = {
-            "none": "Disable all shaders. Restore default rendering.",
-            "dots": "Screen-wide dot matrix effect applied via Hyprland compositor.",
-            "wall": "Wallpaper rendered as LED dot matrix via Quickshell background layer.",
-            "01_sepia": "Applies warm sepia tone filter to entire screen.",
-            "02_grayscale": "Converts screen to black and white.",
-            "03_vibrance": "Intelligently enhances color saturation.",
-            "04_optics_compensate": "Corrects optical distortions.",
-            "05_sketch": "Pencil sketch edge-detection effect.",
-            "06_chromatic_aberration": "Simulates lens color fringing.",
-            "07_newspaper": "Old newspaper print dithering effect.",
-            "08_posterization": "Reduces color levels for retro poster look.",
-            "09_anaglyph_3d": "3D anaglyph red/cyan effect."
+            "none": "Disable all shaders",
+            "dots": "Screen-wide dot matrix via Hyprland",
+            "wall": "Wallpaper LED dots via Quickshell",
+            "01_sepia": "Warm sepia tone filter",
+            "02_grayscale": "Black and white rendering",
+            "03_vibrance": "Enhanced color saturation",
+            "04_optics_compensate": "Optical distortion correction",
+            "05_sketch": "Pencil sketch effect",
+            "06_chromatic_aberration": "Lens color fringing",
+            "07_newspaper": "Newspaper print dithering",
+            "08_posterization": "Retro poster colors",
+            "09_anaglyph_3d": "3D anaglyph effect"
         }
-        return desc[name] || "Custom shader effect."
+        return desc[name] || "Custom shader"
     }
 
     Process {
@@ -110,7 +110,7 @@ PanelWindow {
         var nameToWrite = (shaderName === "none" || shaderName === "") ? "" : shaderName
         win.current = nameToWrite
         stateView.setText(nameToWrite)
-        Quickshell.execDetached(["hyprctl", "reload"])
+        Quickshell.execDetached(["bash", "-c", "sleep 0.1 && hyprctl reload"])
     }
 
     onOpenedChanged: {
@@ -122,8 +122,8 @@ PanelWindow {
     }
 
     Shortcut { sequence: "Escape"; enabled: win.opened; onActivated: win.closeRequested() }
-    Shortcut { sequence: "Left"; enabled: win.opened; onActivated: if (win.idx > 0) win.idx-- }
-    Shortcut { sequence: "Right"; enabled: win.opened; onActivated: if (win.idx < win.filteredModel.length - 1) win.idx++ }
+    Shortcut { sequence: "Up"; enabled: win.opened; onActivated: if (win.idx > 0) win.idx-- }
+    Shortcut { sequence: "Down"; enabled: win.opened; onActivated: if (win.idx < win.filteredModel.length - 1) win.idx++ }
     Shortcut {
         sequence: "Return"; enabled: win.opened
         onActivated: {
@@ -156,16 +156,16 @@ PanelWindow {
 
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(cBg.r, cBg.g, cBg.b, 0.92)
+        color: Qt.rgba(cBg.r, cBg.g, cBg.b, 0.85)
         MouseArea { anchors.fill: parent; onClicked: win.closeRequested() }
     }
 
     Rectangle {
-        id: mainCard
+        id: card
         anchors.centerIn: parent
-        width: 1000
-        height: 720
-        radius: 16
+        width: 520
+        height: 680
+        radius: 24
         color: cBg
         border.width: 1
         border.color: cDim
@@ -176,311 +176,143 @@ PanelWindow {
             spacing: 20
 
             // Header
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 48
-
-                Text {
-                    text: "SHADER PICKER"
-                    color: cFg
-                    font.family: fDot
-                    font.weight: Font.Black
-                    font.pixelSize: 28
-                    font.letterSpacing: 4
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: win.filteredModel.length + " EFFECTS"
-                    color: cText
-                    font.family: fMono
-                    font.pixelSize: 11
-                    font.letterSpacing: 2
-                }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: "Shaders"
+                color: cFg
+                font.family: fDot
+                font.weight: Font.Black
+                font.pixelSize: 28
+                font.letterSpacing: 2
             }
 
-            // Search Bar
+            // Search
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 44
-                radius: 8
+                radius: 12
                 color: cSurf
-                border.width: 1
-                border.color: searchField.activeFocus ? cAccent : cDim
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 12
+                    anchors.margins: 14
+                    spacing: 10
 
                     Text {
                         text: "⌕"
                         color: cText
-                        font.pixelSize: 18
+                        font.pixelSize: 16
                     }
 
                     TextField {
                         id: searchField
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        placeholderText: "Search shaders..."
+                        placeholderText: "Search..."
                         text: win.searchText
                         onTextChanged: win.searchText = text
 
                         font.family: fMono
-                        font.pixelSize: 13
+                        font.pixelSize: 12
                         color: cFg
-                        selectionColor: cAccent
 
                         background: Rectangle { color: "transparent" }
                     }
                 }
             }
 
-            // Main Content
-            RowLayout {
+            // Shader List
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 24
+                radius: 16
+                color: cSurf
 
-                // Shader List
-                Rectangle {
-                    Layout.fillHeight: true
-                    Layout.preferredWidth: 320
-                    radius: 12
-                    color: cSurf
-                    border.width: 1
-                    border.color: cDim
+                ListView {
+                    id: shaderList
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    clip: true
+                    model: win.filteredModel
+                    currentIndex: win.idx
+                    spacing: 4
+                    boundsBehavior: Flickable.StopAtBounds
 
-                    ListView {
-                        id: shaderList
-                        anchors.fill: parent
-                        anchors.margins: 8
-                        clip: true
-                        model: win.filteredModel
-                        currentIndex: win.idx
-                        spacing: 4
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        Connections {
-                            target: win
-                            function onIdxChanged() {
-                                Qt.callLater(() => shaderList.positionViewAtIndex(win.idx, ListView.Contain))
-                            }
-                        }
-
-                        delegate: Rectangle {
-                            required property int index
-                            required property var modelData
-                            width: shaderList.width
-                            height: 56
-                            radius: 8
-                            color: win.idx === index ? Qt.rgba(cAccent.r, cAccent.g, cAccent.b, 0.15) : "transparent"
-                            border.width: win.idx === index ? 1 : 0
-                            border.color: cAccent
-
-                            readonly property bool active: modelData.isNone ? win.current === "" : (win.current === modelData.name)
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 12
-
-                                Text {
-                                    text: modelData.isNone ? "○" : "●"
-                                    color: active ? cAccent : cText
-                                    font.pixelSize: 14
-                                }
-
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 2
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: modelData.isNone ? "None" : modelData.name
-                                        color: active ? cAccent : cFg
-                                        font.family: fMono
-                                        font.pixelSize: 13
-                                        font.weight: active ? Font.Bold : Font.Normal
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: modelData.type === "hyprland" ? "Hyprland" : (modelData.type === "quickshell" ? "Quickshell" : "")
-                                        color: cText
-                                        font.family: fMono
-                                        font.pixelSize: 10
-                                        font.letterSpacing: 1
-                                    }
-                                }
-
-                                Text {
-                                    visible: active
-                                    text: "✓"
-                                    color: cAccent
-                                    font.pixelSize: 16
-                                    font.weight: Font.Bold
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    win.idx = index
-                                    win.apply(modelData.name)
-                                }
-                                onEntered: win.idx = index
-                            }
-                        }
-                    }
-                }
-
-                // Preview & Info
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: 16
-
-                    // Preview
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 380
-                        radius: 12
-                        color: Qt.rgba(cFg.r, cFg.g, cFg.b, 0.03)
-                        border.width: 1
-                        border.color: cDim
-                        clip: true
-
-                        Canvas {
-                            anchors.fill: parent
-                            visible: win.idx === 0
-                            property color dc: cFg
-                            onDcChanged: requestPaint()
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.reset()
-                                ctx.strokeStyle = Qt.rgba(dc.r, dc.g, dc.b, 0.15)
-                                ctx.lineWidth = 1
-                                ctx.beginPath()
-                                ctx.moveTo(0, 0); ctx.lineTo(width, height)
-                                ctx.moveTo(width, 0); ctx.lineTo(0, height)
-                                ctx.stroke()
-                            }
-                            onWidthChanged: requestPaint()
-                            onHeightChanged: requestPaint()
-                        }
-
-                        ShaderEffect {
-                            anchors.fill: parent
-                            visible: win.idx > 0 && win.filteredModel[win.idx].type === "quickshell"
-                            fragmentShader: "file://" + win.filteredModel[win.idx].path
-
-                            property vector2d size: Qt.vector2d(width, height)
-                            property real pitch: 7
-                            property var source: sharedSource
-                            property vector2d origin: Qt.vector2d(width / 2, height / 2)
-                            property vector2d cropA: Qt.vector2d(1, 1)
-                            property vector2d cropB: Qt.vector2d(1, 1)
-                            property vector4d lo: Qt.vector4d(cBg.r, cBg.g, cBg.b, 1.0)
-                            property vector4d hi: Qt.vector4d(cAccent.r, cAccent.g, cAccent.b, 1.0)
-                            property vector4d bg: Qt.vector4d(cBg.r, cBg.g, cBg.b, 1.0)
-                            property real dots: 1.0
-                            property real mono: 1.0
-                            property real bright: 1.0
-                            property real wave: 0.0
-                            property real hasA: 1.0
-                            property real hasB: 0.0
-                            property var srcA: sharedSource
-                            property var srcB: sharedSource
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            visible: win.idx > 0 && win.filteredModel[win.idx].type === "hyprland"
-                            text: "HYPRLAND\nCOMPOSITOR\nSHADER"
-                            color: cText
-                            font.family: fMono
-                            font.pixelSize: 14
-                            font.letterSpacing: 2
-                            horizontalAlignment: Text.AlignHCenter
-                        }
-
-                        Text {
-                            anchors.centerIn: parent
-                            visible: win.idx === 0
-                            text: "NONE"
-                            color: cText
-                            font.family: fDot
-                            font.weight: Font.Black
-                            font.pixelSize: 24
-                            font.letterSpacing: 4
+                    Connections {
+                        target: win
+                        function onIdxChanged() {
+                            Qt.callLater(() => shaderList.positionViewAtIndex(win.idx, ListView.Contain))
                         }
                     }
 
-                    // Info Panel
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        radius: 12
-                        color: cSurf
-                        border.width: 1
-                        border.color: cDim
+                    delegate: Rectangle {
+                        required property int index
+                        required property var modelData
+                        width: shaderList.width
+                        height: 52
+                        radius: 10
+                        color: win.idx === index ? Qt.rgba(cAccent.r, cAccent.g, cAccent.b, 0.12) : "transparent"
 
-                        ColumnLayout {
+                        readonly property bool active: modelData.isNone ? win.current === "" : (win.current === modelData.name)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
                             anchors.fill: parent
-                            anchors.margins: 20
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
                             spacing: 12
 
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.idx === 0 ? "DISABLED" : win.filteredModel[win.idx].name.toUpperCase()
-                                color: cAccent
-                                font.family: fDot
-                                font.weight: Font.Black
-                                font.pixelSize: 20
-                                font.letterSpacing: 3
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.shaderDescription(win.idx === 0 ? "none" : win.filteredModel[win.idx].name)
-                                color: cFg
-                                font.family: fMono
-                                font.pixelSize: 12
-                                wrapMode: Text.Wrap
-                                lineHeight: 1.4
-                            }
-
-                            Item { Layout.fillHeight: true }
-
                             Rectangle {
-                                Layout.fillWidth: true
-                                height: 1
-                                color: cDim
+                                width: 8
+                                height: 8
+                                radius: 4
+                                color: active ? cAccent : "transparent"
+                                border.width: active ? 0 : 1
+                                border.color: cText
                             }
 
-                            RowLayout {
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                spacing: 2
 
                                 Text {
-                                    text: "Consumer:"
+                                    Layout.fillWidth: true
+                                    text: modelData.isNone ? "None" : modelData.name
+                                    color: active ? cAccent : cFg
+                                    font.family: fMono
+                                    font.pixelSize: 13
+                                    font.weight: active ? Font.DemiBold : Font.Normal
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: win.shaderDescription(modelData.name)
                                     color: cText
                                     font.family: fMono
                                     font.pixelSize: 10
-                                    font.letterSpacing: 1
-                                }
-
-                                Text {
-                                    text: win.idx === 0 ? "None" : (win.filteredModel[win.idx].type === "hyprland" ? "Hyprland Compositor" : "Quickshell")
-                                    color: cFg
-                                    font.family: fMono
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
+                                    elide: Text.ElideRight
                                 }
                             }
+
+                            Text {
+                                visible: active
+                                text: "✓"
+                                color: cAccent
+                                font.pixelSize: 16
+                                font.weight: Font.Bold
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                win.idx = index
+                                win.apply(modelData.name)
+                            }
+                            onEntered: win.idx = index
                         }
                     }
                 }
@@ -492,7 +324,7 @@ PanelWindow {
                 Layout.preferredHeight: 20
 
                 Text {
-                    text: "◀ ▶ Navigate   ⏎ Apply   Esc Close"
+                    text: "↑↓ • ⏎ • Esc"
                     color: cText
                     font.family: fMono
                     font.pixelSize: 10
@@ -500,11 +332,11 @@ PanelWindow {
                 }
                 Item { Layout.fillWidth: true }
                 Text {
-                    text: (win.idx + 1) + " / " + win.filteredModel.length
+                    text: (win.idx + 1) + "/" + win.filteredModel.length
                     color: cAccent
                     font.family: fDot
                     font.weight: Font.Black
-                    font.pixelSize: 14
+                    font.pixelSize: 13
                 }
             }
         }
