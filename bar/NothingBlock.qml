@@ -13,7 +13,7 @@ Item {
     property string fMonoStr: "monospace"
     property string fGroteskStr: "sans-serif"
     property string fIconStr: "JetBrainsMono Nerd Font"
-    property real barHeight: 36
+    property real barHeight: 28
 
     signal clicked()
     signal wheelScrolled(real delta)   // ← new
