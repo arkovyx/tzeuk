@@ -174,5 +174,10 @@ ShellRoot {
         function toggle(): void { root.shaderOpen = !root.shaderOpen }
         function open(): void   { root.shaderOpen = true }
         function close(): void  { root.shaderOpen = false }
+        function set(name: string): void {
+            var stateFile = Quickshell.env("HOME") + "/.cache/tzeuk/shader"
+            var value = (name === "none" || name === "") ? "" : name
+            Quickshell.execDetached(["bash", "-c", "printf '%s' \"" + value + "\" > '" + stateFile + "' && sleep 0.1 && hyprctl reload"])
+        }
     }
 }
