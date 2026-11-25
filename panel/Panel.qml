@@ -247,7 +247,7 @@ PanelWindow {
                     anchors.bottomMargin: 24
                     anchors.left: parent.left
                     anchors.leftMargin: 24
-                    text: "v2.0"
+                    text: "v2.1.0"                      // version
                     color: win.nText
                     font.family: win.fMonoStr
                     font.pixelSize: 10
