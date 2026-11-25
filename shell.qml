@@ -14,6 +14,7 @@ import "themes"
 import "desktop"
 import "timerandalarms"
 import "shaderpicker"
+import "cal"
 
 ShellRoot {
     id: root
@@ -73,7 +74,7 @@ ShellRoot {
         screen: root.panelScreen !== null ? root.panelScreen : root.focusedScreen()
     }
 
-    CalendarPopup {
+    Cal {
         opened: root.calOpen
         onCloseRequested: root.calOpen = false
         screen: root.calScreen !== null ? root.calScreen : root.focusedScreen()
@@ -179,5 +180,15 @@ ShellRoot {
             var value = (name === "none" || name === "") ? "" : name
             Quickshell.execDetached(["bash", "-c", "printf '%s' \"" + value + "\" > '" + stateFile + "' && sleep 0.1 && hyprctl reload"])
         }
+    }
+
+    IpcHandler {
+        target: "calendar"
+        function toggle(): void {
+            root.calScreen = root.focusedScreen()
+            root.calOpen = !root.calOpen
+            root.panelOpen = false
+        }
+        function close(): void { root.calOpen = false }
     }
 }
